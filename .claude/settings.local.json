@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(psql -U jinchengri -d talent_portrait -c \"\\\\dt\")",
+      "Bash(python seed_data.py)",
+      "Bash(python3 seed_data.py)",
+      "Bash(venv/bin/python seed_data.py)",
+      "Bash(psql -U jinchengri -d talent_portrait -c \"SELECT COUNT\\(*\\) FROM employees WHERE is_active = true;\")",
+      "Bash(curl -s \"http://localhost:8000/api/employees?page=1&page_size=10\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('total:', d['total'], 'items returned:', len\\(d['items']\\)\\)\")"
+    ]
+  }
+}
