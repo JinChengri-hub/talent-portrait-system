@@ -46,7 +46,7 @@ async def list_employees(
     skill: Optional[str] = Query(None, description="技能筛选"),
     status: Optional[str] = Query(None, description="状态筛选"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -90,19 +90,28 @@ async def list_employees(
 @router.get("/filter-options")
 async def get_filter_options(db: AsyncSession = Depends(get_db)):
     """返回筛选下拉选项：部门、职级、技能列表"""
+    from app.models.project import Project
+    projects = await db.execute(
+        select(Project.id, Project.name).where(Project.status == "active").order_by(Project.name)
+    )
     competencies = await db.execute(
         select(Employee.competency).distinct().where(Employee.competency.isnot(None), Employee.is_active == True)
     )
     grades = await db.execute(
         select(Employee.grade).distinct().where(Employee.grade.isnot(None), Employee.is_active == True)
     )
+    locations = await db.execute(
+        select(Employee.location).distinct().where(Employee.location.isnot(None), Employee.is_active == True)
+    )
     skills = await db.execute(select(Skill.name).order_by(Skill.name))
 
     return {
         "competencies": sorted([r[0] for r in competencies.all()]),
         "grades": sorted([r[0] for r in grades.all()]),
+        "locations": sorted([r[0] for r in locations.all()]),
         "skills": [r[0] for r in skills.all()],
         "statuses": ["在项", "bench", "休假"],
+        "projects": [{"id": r[0], "name": r[1]} for r in projects.all()],
     }
 
 
@@ -222,3 +231,13 @@ async def update_employee(employee_id: int, data: EmployeeUpdate, db: AsyncSessi
         setattr(emp, field, value)
     await db.commit()
     return await get_employee(employee_id, db)
+
+
+@router.delete("/{employee_id}", status_code=204)
+async def delete_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Employee).where(Employee.id == employee_id))
+    emp = result.scalar_one_or_none()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    emp.is_active = False
+    await db.commit()

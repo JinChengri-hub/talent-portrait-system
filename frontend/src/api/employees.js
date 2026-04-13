@@ -24,4 +24,7 @@ export const employeeApi = {
       responseType: 'blob',
     })
   },
+  remove(id) {
+    return http.delete(`/employees/${id}`)
+  },
 }

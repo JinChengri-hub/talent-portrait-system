@@ -1,8 +1,10 @@
 <template>
-  <div class="sidebar">
+  <div class="sidebar" :class="{ collapsed: layout.sidebarCollapsed }">
     <div class="sidebar-logo">
-      <span class="logo-text">人才画像系统</span>
+      <span v-if="!layout.sidebarCollapsed" class="logo-text">人才画像系统</span>
+      <span v-else class="logo-short">人才</span>
     </div>
+
     <nav class="sidebar-nav">
       <router-link
         v-for="item in menuItems"
@@ -12,13 +14,20 @@
         active-class="nav-item--active"
       >
         <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
-        <span>{{ item.label }}</span>
+        <span v-if="!layout.sidebarCollapsed" class="nav-label">{{ item.label }}</span>
+        <el-tooltip v-else :content="item.label" placement="right" effect="dark">
+          <span class="tooltip-anchor" />
+        </el-tooltip>
       </router-link>
     </nav>
+
   </div>
 </template>
 
 <script setup>
+import { useLayoutStore } from '@/stores/layout'
+const layout = useLayoutStore()
+
 const menuItems = [
   { path: '/dashboard', label: '工作台', icon: 'Monitor' },
   { path: '/employees', label: '员工列表', icon: 'User' },
@@ -44,12 +53,23 @@ const menuItems = [
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
+  transition: width 0.25s ease, min-width 0.25s ease;
+}
+
+.sidebar.collapsed {
+  width: 60px;
+  min-width: 60px;
 }
 
 .sidebar-logo {
-  padding: 20px 20px 16px;
+  padding: 20px 16px 16px;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: 57px;
 }
 
 .logo-text {
@@ -59,13 +79,24 @@ const menuItems = [
   letter-spacing: 0.5px;
 }
 
+.logo-short {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  margin: 0 auto;
+}
+
 .sidebar-nav {
+  flex: 1;
   padding: 12px 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -75,7 +106,14 @@ const menuItems = [
   font-size: 14px;
   transition: all 0.2s;
   border-left: 3px solid transparent;
+  white-space: nowrap;
 }
+
+.sidebar.collapsed .nav-item {
+  padding: 11px 0;
+  justify-content: center;
+}
+
 
 .nav-item:hover {
   color: var(--text-primary);
@@ -92,4 +130,14 @@ const menuItems = [
   font-size: 16px;
   flex-shrink: 0;
 }
+
+.nav-label {
+  overflow: hidden;
+}
+
+.tooltip-anchor {
+  position: absolute;
+  inset: 0;
+}
+
 </style>

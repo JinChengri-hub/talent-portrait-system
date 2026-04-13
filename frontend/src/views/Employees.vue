@@ -4,6 +4,9 @@
     <div class="main-area">
       <h2 class="page-title">员工列表</h2>
 
+      <!-- 筛选栏 + 表格 大框 -->
+      <div class="list-card">
+
       <!-- 筛选栏 -->
       <div class="filter-bar">
         <el-input
@@ -66,6 +69,10 @@
           <el-icon><RefreshRight /></el-icon>
           刷新
         </el-button>
+        <el-button class="add-btn" type="primary" size="small" @click="openAddDialog">
+          <el-icon><Plus /></el-icon>
+          新增
+        </el-button>
       </div>
 
       <!-- 表格 -->
@@ -77,7 +84,7 @@
           row-class-name="table-row"
           @sort-change="handleSortChange"
           :element-loading-background="'rgba(10,22,40,0.8)'"
-          style="min-width: 1000px"
+          style="min-width: 1200px"
         >
           <el-table-column prop="name" label="姓名" width="100">
             <template #default="{ row }">
@@ -89,15 +96,41 @@
 
           <el-table-column prop="gpn" label="GPN" width="130" />
 
-          <el-table-column prop="competency" label="Competency" min-width="120" />
-
-          <el-table-column prop="grade" label="职级" width="90">
+          <el-table-column prop="competency" label="Competency" min-width="130">
             <template #default="{ row }">
-              <span v-if="row.grade" class="grade-badge">{{ row.grade }}</span>
+              <el-input
+                v-if="editingId === row.id"
+                v-model="editRow.competency"
+                size="small"
+              />
+              <span v-else>{{ row.competency || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="location" label="Location" width="120" />
+          <el-table-column prop="grade" label="职级" width="110">
+            <template #default="{ row }">
+              <el-select
+                v-if="editingId === row.id"
+                v-model="editRow.grade"
+                size="small"
+              >
+                <el-option v-for="g in filterOptions.grades" :key="g" :label="g" :value="g" />
+              </el-select>
+              <span v-else-if="row.grade" class="grade-badge">{{ row.grade }}</span>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="location" label="Location" width="130">
+            <template #default="{ row }">
+              <el-input
+                v-if="editingId === row.id"
+                v-model="editRow.location"
+                size="small"
+              />
+              <span v-else>{{ row.location || '-' }}</span>
+            </template>
+          </el-table-column>
 
           <el-table-column prop="counsellor_name" label="Counsellor" width="120">
             <template #default="{ row }">
@@ -118,22 +151,62 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="ytd_ut" label="YTD UT" width="100" sortable="custom">
+          <el-table-column prop="ytd_ut" label="YTD UT" width="110" sortable="custom">
             <template #default="{ row }">
-              <span :class="getUtClass(row.ytd_ut)">
+              <el-input
+                v-if="editingId === row.id"
+                v-model.number="editRow.ytd_ut"
+                size="small"
+                type="number"
+                :min="0"
+                :max="100"
+              />
+              <span v-else :class="getUtClass(row.ytd_ut)">
                 {{ row.ytd_ut != null ? row.ytd_ut.toFixed(1) + '%' : '-' }}
               </span>
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="80" fixed="right">
+          <el-table-column label="状态" width="120">
             <template #default="{ row }">
-              <el-button
+              <el-select
+                v-if="editingId === row.id"
+                v-model="editRow.status"
                 size="small"
-                type="primary"
-                link
-                @click="$router.push(`/employees/${row.id}`)"
-              >查看</el-button>
+              >
+                <el-option v-for="s in filterOptions.statuses" :key="s" :label="s" :value="s" />
+              </el-select>
+              <el-tag
+                v-else-if="row.status"
+                :type="getStatusType(row.status)"
+                size="small"
+                class="status-tag"
+                effect="plain"
+              >{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <template v-if="editingId === row.id">
+                <div class="action-cell">
+                  <div class="action-row">
+                    <el-button size="small" type="primary" link @click="saveRow(row)">保存</el-button>
+                    <el-button size="small" link @click="cancelEdit">取消</el-button>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="action-cell">
+                  <div class="action-row">
+                    <el-button size="small" type="primary" link @click="startEdit(row)">编辑</el-button>
+                    <el-button size="small" type="primary" link @click="$router.push(`/employees/${row.id}`)">查看</el-button>
+                  </div>
+                  <div class="action-row">
+                    <el-button size="small" type="primary" link class="delete-btn" @click="deleteRow(row)">删除</el-button>
+                  </div>
+                </div>
+              </template>
             </template>
           </el-table-column>
         </el-table>
@@ -161,16 +234,69 @@
             @current-change="loadData"
             @size-change="handleSizeChange"
           />
-          <el-button
-            type="primary"
-            size="small"
-            @click="$router.push('/employees/new')"
-          >
-            <el-icon><Plus /></el-icon>
-            新增
-          </el-button>
         </div>
       </div>
+
+      </div> <!-- /list-card -->
+
+      <!-- 新增员工弹窗 -->
+      <el-dialog v-model="addDialogVisible" title="新增员工" width="400px" :close-on-click-modal="false" class="add-employee-dialog">
+        <el-form :model="addForm" label-width="90px" size="small" style="--el-form-item-mb: 12px">
+          <el-form-item label="GPN" required>
+            <el-input v-model="addForm.gpn" placeholder="请输入GPN" />
+          </el-form-item>
+          <el-form-item label="姓名" required>
+            <el-input v-model="addForm.name" placeholder="请输入姓名" />
+          </el-form-item>
+          <el-form-item label="Competency">
+            <el-select v-model="addForm.competency" placeholder="选择部门" clearable style="width:100%">
+              <el-option v-for="c in filterOptions.competencies" :key="c" :label="c" :value="c" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="职级">
+            <el-select v-model="addForm.grade" placeholder="选择职级" clearable style="width:100%">
+              <el-option v-for="g in filterOptions.grades" :key="g" :label="g" :value="g" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Location">
+            <el-select v-model="addForm.location" placeholder="选择城市" clearable style="width:100%">
+              <el-option v-for="l in filterOptions.locations" :key="l" :label="l" :value="l" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="addForm.status" style="width:100%" @change="addForm.project_id = null">
+              <el-option v-for="s in filterOptions.statuses" :key="s" :label="s" :value="s" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="addForm.status === '在项'" label="当前项目">
+            <el-select v-model="addForm.project_id" placeholder="选择项目" clearable filterable style="width:100%">
+              <el-option
+                v-for="p in filterOptions.projects"
+                :key="p.id"
+                :label="p.name"
+                :value="p.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Counsellor">
+            <el-select v-model="addForm.counsellor_id" placeholder="选择上级" clearable filterable style="width:100%">
+              <el-option
+                v-for="emp in allEmployees"
+                :key="emp.id"
+                :label="`${emp.name} (${emp.grade || '-'})`"
+                :value="emp.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="邮箱">
+            <el-input v-model="addForm.email" placeholder="请输入邮箱" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="addDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="addLoading" @click="submitAdd">确认新增</el-button>
+        </template>
+      </el-dialog>
     </div>
 
     <!-- 右侧面板 -->
@@ -208,7 +334,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { use } from 'echarts/core'
 import { PieChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent } from 'echarts/components'
@@ -221,6 +348,15 @@ use([PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
 const loading = ref(false)
 const exporting = ref(false)
 const tableData = ref([])
+const editingId = ref(null)
+const editRow = reactive({})
+const addDialogVisible = ref(false)
+const addLoading = ref(false)
+const addForm = reactive({
+  gpn: '', name: '', competency: '', grade: '', location: '',
+  status: 'bench', email: '', counsellor_id: null, project_id: null,
+})
+const allEmployees = ref([])
 const total = ref(0)
 
 const filters = reactive({
@@ -239,8 +375,10 @@ const pagination = reactive({
 const filterOptions = reactive({
   competencies: [],
   grades: [],
+  locations: [],
   skills: [],
   statuses: [],
+  projects: [],
 })
 
 const stats = reactive({
@@ -261,17 +399,18 @@ const skillChartOption = ref({
   },
   legend: {
     orient: 'vertical',
-    right: 0,
+    left: 0,
     top: 'center',
     textStyle: { color: '#8ab4d4', fontSize: 12 },
-    itemWidth: 12,
-    itemHeight: 12,
+    itemWidth: 14,
+    itemHeight: 14,
+    itemGap: 10,
   },
   series: [
     {
       type: 'pie',
-      radius: ['50%', '75%'],
-      center: ['38%', '50%'],
+      radius: ['45%', '72%'],
+      center: ['65%', '50%'],
       data: [],
       label: { show: false },
       emphasis: {
@@ -364,6 +503,92 @@ async function loadFilterOptions() {
   }
 }
 
+function startEdit(row) {
+  editingId.value = row.id
+  Object.assign(editRow, {
+    competency: row.competency,
+    grade: row.grade,
+    location: row.location,
+    ytd_ut: row.ytd_ut,
+    status: row.status,
+  })
+}
+
+function cancelEdit() {
+  editingId.value = null
+}
+
+async function saveRow(row) {
+  try {
+    await employeeApi.update(row.id, {
+      competency: editRow.competency,
+      grade: editRow.grade,
+      location: editRow.location,
+      ytd_ut: editRow.ytd_ut,
+      status: editRow.status,
+    })
+    // 直接更新本地数据，不需要重新请求
+    Object.assign(row, {
+      competency: editRow.competency,
+      grade: editRow.grade,
+      location: editRow.location,
+      ytd_ut: editRow.ytd_ut,
+      status: editRow.status,
+    })
+    editingId.value = null
+    ElMessage.success('保存成功')
+  } catch (e) {
+    ElMessage.error('保存失败')
+  }
+}
+
+async function openAddDialog() {
+  Object.assign(addForm, { gpn: '', name: '', competency: '', grade: '', location: '', status: 'bench', email: '', counsellor_id: null, project_id: null })
+  addDialogVisible.value = true
+  // 加载全部员工供 Counsellor 选择（异步，不阻塞弹窗打开）
+  if (allEmployees.value.length === 0) {
+    try {
+      const res = await employeeApi.list({ page: 1, page_size: 999 })
+      allEmployees.value = res.data.items
+    } catch (e) {
+      console.error('加载员工列表失败', e)
+    }
+  }
+}
+
+async function submitAdd() {
+  if (!addForm.gpn || !addForm.name) {
+    ElMessage.warning('GPN 和姓名为必填项')
+    return
+  }
+  addLoading.value = true
+  try {
+    await employeeApi.create({ ...addForm, ytd_ut: 0 })
+    addDialogVisible.value = false
+    ElMessage.success('新增成功')
+    loadData()
+  } catch (e) {
+    ElMessage.error('新增失败，GPN 可能已存在')
+  } finally {
+    addLoading.value = false
+  }
+}
+
+async function deleteRow(row) {
+  try {
+    await ElMessageBox.confirm(`确认删除员工「${row.name}」？此操作不可恢复。`, '删除确认', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await employeeApi.remove(row.id)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
 async function handleExport() {
   exporting.value = true
   try {
@@ -416,16 +641,24 @@ onMounted(() => {
   letter-spacing: 0.5px;
 }
 
+/* 大框：筛选栏 + 表格 + 分页 */
+.list-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 筛选栏 */
 .filter-bar {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
-  padding: 16px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  flex-wrap: nowrap;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .filter-search {
@@ -448,12 +681,14 @@ onMounted(() => {
   color: var(--accent-cyan) !important;
 }
 
+.add-btn {
+  margin-left: 4px;
+}
+
 /* 表格 */
 .table-wrapper {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
   overflow: auto;
+  flex: 1;
 }
 
 .employee-table {
@@ -504,6 +739,31 @@ onMounted(() => {
   font-size: 13px;
 }
 
+.action-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.action-row .el-button + .el-button {
+  margin-left: 6px;
+}
+
+.delete-btn {
+  color: var(--accent-red) !important;
+}
+
+.delete-btn:hover {
+  color: #ff6b6b !important;
+}
+
 .text-muted {
   color: var(--text-muted);
 }
@@ -541,9 +801,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-top: 1px solid var(--border-color);
 }
 
 .pagination-right {
@@ -576,6 +834,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-top: 44px;
 }
 
 .panel-card {

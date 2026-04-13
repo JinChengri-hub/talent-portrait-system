@@ -1,7 +1,9 @@
 <template>
   <div class="app-header">
     <div class="header-left">
-      <el-icon class="menu-icon"><Expand /></el-icon>
+      <el-icon class="menu-icon" @click="layout.toggleSidebar()">
+        <component :is="layout.sidebarCollapsed ? 'Expand' : 'Fold'" />
+      </el-icon>
       <span class="welcome-text">欢迎回来，管理员</span>
     </div>
     <div class="header-right">
@@ -18,6 +20,11 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { useLayoutStore } from '@/stores/layout'
+const layout = useLayoutStore()
+</script>
 
 <style scoped>
 .app-header {
