@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import text
 
 # 直接使用数据库 URL，不依赖 .env 加载
-DATABASE_URL = "postgresql+asyncpg://jinchengri@localhost:5432/talent_portrait"
+DATABASE_URL = "postgresql+asyncpg://postgres:ey123456@localhost:5432/talent_portrait"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)

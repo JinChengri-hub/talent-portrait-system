@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import employees, projects
+from app.routers import employees, projects, requirements
 
 app = FastAPI(title="人才画像系统 API", version="1.0.0")
 
@@ -15,6 +15,7 @@ app.add_middleware(
 
 app.include_router(employees.router)
 app.include_router(projects.router)
+app.include_router(requirements.router)
 
 
 @app.on_event("startup")

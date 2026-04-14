@@ -13,3 +13,10 @@ backend/.env
 
 # OS
 .DS_Store
+Thumbs.db
+
+# Snapshots (local backups)
+snapshots/
+
+# Demo / seed SQL files
+demo_*.sql

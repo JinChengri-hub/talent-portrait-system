@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, Text, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -50,9 +50,16 @@ class ProjectRequirement(Base):
     start_date = Column(Date, nullable=True)
     status = Column(String(50), default="open", comment="open/filled/cancelled")
     description = Column(Text, nullable=True)
+    fiscal_year = Column(String(20), nullable=True, comment="财年，如 FY2025")
+    location = Column(String(100), nullable=True, comment="工作地点")
+    match_status = Column(String(20), nullable=True, comment="匹配状态：匹配中/已匹配/部分匹配")
+    requester = Column(String(100), nullable=True, comment="需求提出者")
+    job_content = Column(Text, nullable=True, comment="工作内容")
+    request_date = Column(Date, nullable=True, comment="需求提出日期")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="requirements")
+    consultants = relationship("RequirementConsultant", back_populates="requirement", cascade="all, delete-orphan")
 
 
 class ProjectVoC(Base):
@@ -67,3 +74,16 @@ class ProjectVoC(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="voc_list")
+
+
+class RequirementConsultant(Base):
+    __tablename__ = "requirement_consultants"
+    __table_args__ = (UniqueConstraint("requirement_id", "employee_id", name="uq_req_consultant"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    requirement_id = Column(Integer, ForeignKey("project_requirements.id", ondelete="CASCADE"), nullable=False)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    requirement = relationship("ProjectRequirement", back_populates="consultants")
+    employee = relationship("Employee")
