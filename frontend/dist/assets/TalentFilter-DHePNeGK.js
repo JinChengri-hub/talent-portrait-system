@@ -1,1 +1,0 @@
-import{_ as t,o as a,c as s,a as o}from"./index-DyJAZfQp.js";const c={},r={class:"placeholder-page"};function n(l,e){return a(),s("div",r,[...e[0]||(e[0]=[o("h2",{class:"page-title"},"页面开发中",-1)])])}const d=t(c,[["render",n],["__scopeId","data-v-414e6e84"]]);export{d as default};
