@@ -96,7 +96,7 @@
 
           <el-table-column prop="gpn" label="GPN" width="130" />
 
-          <el-table-column prop="competency" label="Competency" min-width="130">
+          <el-table-column prop="competency" label="所属部门" min-width="130">
             <template #default="{ row }">
               <el-input
                 v-if="editingId === row.id"
