@@ -3,11 +3,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.project import Project, ProjectRequirement, RequirementConsultant
 from app.models.employee import Employee
 from app.models.skill import Skill
+
+
+class RequirementUpdate(BaseModel):
+    project_name: Optional[str] = None
+    competency: Optional[str] = None
+    opportunity_type: Optional[str] = None
+    ep_id: Optional[int] = None
+    em_id: Optional[int] = None
+    project_start_date: Optional[str] = None
+    project_end_date: Optional[str] = None
+    headcount: Optional[int] = None
+    required_skills: Optional[str] = None
+    fiscal_year: Optional[str] = None
+    location: Optional[str] = None
+    match_status: Optional[str] = None
+    description: Optional[str] = None
+    job_content: Optional[str] = None
+    requester: Optional[str] = None
+    request_date: Optional[str] = None
+    consultant_ids: Optional[List[int]] = None
+
+
+class RequirementCreate(BaseModel):
+    project_name: str
+    competency: Optional[str] = None
+    opportunity_type: Optional[str] = None
+    headcount: int
+    required_skills: str
+    fiscal_year: Optional[str] = None
+    location: Optional[str] = None
+    match_status: Optional[str] = None
+    description: Optional[str] = None
 
 router = APIRouter(prefix="/api/requirements", tags=["requirements"])
 
@@ -45,6 +78,49 @@ async def get_filter_options(db: AsyncSession = Depends(get_db)):
         "match_statuses": [r[0] for r in match_statuses.all()],
         "skills": [r[0] for r in skills.all()],
     }
+
+
+@router.get("/projects")
+async def list_projects(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Project.id, Project.name, Project.competency, Project.code_type)
+        .order_by(Project.name)
+    )
+    return [
+        {"id": r[0], "name": r[1], "competency": r[2], "code_type": r[3]}
+        for r in result.all()
+    ]
+
+
+@router.post("")
+async def create_requirement(body: RequirementCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Project).where(Project.name == body.project_name)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        project = Project(name=body.project_name, competency=body.competency, code_type=body.opportunity_type)
+        db.add(project)
+        await db.flush()
+    else:
+        if body.competency and not project.competency:
+            project.competency = body.competency
+        if body.opportunity_type and not project.code_type:
+            project.code_type = body.opportunity_type
+    req = ProjectRequirement(
+        project_id=project.id,
+        headcount=body.headcount,
+        required_skills=body.required_skills,
+        fiscal_year=body.fiscal_year,
+        location=body.location,
+        match_status=body.match_status,
+        description=body.description,
+        status="open",
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+    return {"id": req.id, "message": "created"}
 
 
 @router.get("")
@@ -121,9 +197,12 @@ async def list_requirements(
             "job_content": r.job_content,
             "project_id": p.id if p else None,
             "project_name": p.name if p else None,
-            "project_type": p.code_type if p else None,
+            "project_type": p.project_type if p else None,
+            "opportunity_type": p.code_type if p else None,
             "competency": p.competency if p else None,
+            "ep_id": p.ep_id if p else None,
             "ep_name": p.ep.name if p and p.ep else None,
+            "em_id": p.em_id if p else None,
             "em_name": p.em.name if p and p.em else None,
             "project_start_date": p.start_date.isoformat() if p and p.start_date else None,
             "project_end_date": p.end_date.isoformat() if p and p.end_date else None,
@@ -134,6 +213,71 @@ async def list_requirements(
         })
 
     return {"total": total, "items": items}
+
+
+@router.put("/{requirement_id}")
+async def update_requirement(requirement_id: int, body: RequirementUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(ProjectRequirement).where(ProjectRequirement.id == requirement_id)
+        .options(selectinload(ProjectRequirement.project))
+    )
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+
+    # 更新需求字段
+    if body.headcount is not None:
+        req.headcount = body.headcount
+    if body.required_skills is not None:
+        req.required_skills = body.required_skills
+    if body.fiscal_year is not None:
+        req.fiscal_year = body.fiscal_year
+    if body.location is not None:
+        req.location = body.location
+    if body.match_status is not None:
+        req.match_status = body.match_status
+    if body.description is not None:
+        req.description = body.description
+    if body.job_content is not None:
+        req.job_content = body.job_content
+    if body.requester is not None:
+        req.requester = body.requester
+    if body.request_date is not None:
+        from datetime import date
+        req.request_date = date.fromisoformat(body.request_date) if body.request_date else None
+
+    # 更新关联项目字段
+    if req.project:
+        if body.project_name:
+            req.project.name = body.project_name
+        if body.competency:
+            req.project.competency = body.competency
+        if body.opportunity_type:
+            req.project.code_type = body.opportunity_type
+        if body.ep_id is not None:
+            req.project.ep_id = body.ep_id if body.ep_id != 0 else None
+        if body.em_id is not None:
+            req.project.em_id = body.em_id if body.em_id != 0 else None
+        if body.project_start_date is not None:
+            from datetime import date as date_type
+            req.project.start_date = date_type.fromisoformat(body.project_start_date) if body.project_start_date else None
+        if body.project_end_date is not None:
+            from datetime import date as date_type
+            req.project.end_date = date_type.fromisoformat(body.project_end_date) if body.project_end_date else None
+
+    # 更新推荐顾问
+    if body.consultant_ids is not None:
+        existing = await db.execute(
+            select(RequirementConsultant).where(RequirementConsultant.requirement_id == requirement_id)
+        )
+        for c in existing.scalars().all():
+            await db.delete(c)
+        await db.flush()
+        for emp_id in body.consultant_ids:
+            db.add(RequirementConsultant(requirement_id=requirement_id, employee_id=emp_id))
+
+    await db.commit()
+    return {"message": "updated"}
 
 
 @router.delete("/{requirement_id}")

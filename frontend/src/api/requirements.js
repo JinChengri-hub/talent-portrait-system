@@ -24,4 +24,13 @@ export const requirementApi = {
   remove(id) {
     return http.delete(`/requirements/${id}`)
   },
+  create(data) {
+    return http.post('/requirements', data)
+  },
+  listProjects() {
+    return http.get('/requirements/projects')
+  },
+  update(id, data) {
+    return http.put(`/requirements/${id}`, data)
+  },
 }
