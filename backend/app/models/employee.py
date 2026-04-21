@@ -26,6 +26,9 @@ class Employee(Base):
     status = Column(Enum(EmployeeStatus), default=EmployeeStatus.bench, comment="状态：在项/bench/休假")
     ytd_ut = Column(Float, default=0.0, comment="Year-to-Date UT 利用率（百分比，如 85.0）")
     email = Column(String(200), unique=True, nullable=True)
+    phone = Column(String(50), nullable=True, comment="联系电话")
+    effective_ut = Column(Float, nullable=True, comment="Effective UT，来自外部数据源")
+    avatar_url = Column(String(500), nullable=True, comment="头像图片路径")
     join_date = Column(Date, nullable=True, comment="入职日期")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -62,7 +65,7 @@ class EmployeeSkill(Base):
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     skill_id = Column(Integer, ForeignKey("skills.id"), nullable=False)
-    level = Column(Integer, default=1, comment="技能等级 1-5")
+    level = Column(Integer, default=0, comment="技能等级 0-100，步长10")
     certified_date = Column(Date, nullable=True, comment="认证日期")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

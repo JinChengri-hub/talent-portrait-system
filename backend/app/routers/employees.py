@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+import os
+import time
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import select, func, or_, and_, delete
 from sqlalchemy.orm import selectinload
-from typing import Optional
+from typing import Optional, List
 import io
 import openpyxl
 
@@ -11,9 +13,18 @@ from app.database import get_db
 from app.models.employee import Employee, EmployeeProject, EmployeeSkill
 from app.models.project import Project
 from app.models.skill import Skill
-from app.schemas.employee import EmployeeListResponse, EmployeeListItem, EmployeeDetail, EmployeeCreate, EmployeeUpdate, ProjectBrief, SkillBrief
+from app.models.training import TrainingCPE
+from app.models.performance import Performance
+from app.schemas.employee import (
+    EmployeeListResponse, EmployeeListItem, EmployeeDetail, EmployeeCreate,
+    EmployeeUpdate, ProjectBrief, SkillBrief, SkillInput, SkillOption,
+    ProjectHistoryItem, TrainingItem, PerformanceItem,
+)
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2MB
 
 
 async def _build_list_item(emp: Employee) -> EmployeeListItem:
@@ -175,6 +186,14 @@ async def export_employees(
     )
 
 
+@router.get("/skill-options", response_model=List[SkillOption])
+async def get_skill_options(db: AsyncSession = Depends(get_db)):
+    """返回技能字典，用于技能选择下拉框"""
+    result = await db.execute(select(Skill).order_by(Skill.category, Skill.name))
+    skills = result.scalars().all()
+    return [SkillOption(id=s.id, name=s.name, category=s.category) for s in skills]
+
+
 @router.get("/{employee_id}", response_model=EmployeeDetail)
 async def get_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -201,12 +220,17 @@ async def get_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
         for es in emp.employee_skills if es.skill
     ]
 
+    counsellor = emp.counsellor
     return EmployeeDetail(
-        id=emp.id, gpn=emp.gpn, name=emp.name, competency=emp.competency,
-        grade=emp.grade, location=emp.location,
-        counsellor_name=emp.counsellor.name if emp.counsellor else None,
+        id=emp.id, gpn=emp.gpn, name=emp.name, name_en=emp.name_en,
+        competency=emp.competency, grade=emp.grade, location=emp.location,
+        counsellor_name=counsellor.name if counsellor else None,
         counsellor_id=emp.counsellor_id,
-        status=emp.status, ytd_ut=emp.ytd_ut, email=emp.email,
+        counsellor_name_en=counsellor.name_en if counsellor else None,
+        counsellor_grade=counsellor.grade if counsellor else None,
+        counsellor_email=counsellor.email if counsellor else None,
+        status=emp.status, ytd_ut=emp.ytd_ut, effective_ut=emp.effective_ut,
+        email=emp.email, phone=emp.phone, avatar_url=emp.avatar_url,
         join_date=emp.join_date, skills=skills,
         current_project=current_project, created_at=emp.created_at,
     )
@@ -241,3 +265,131 @@ async def delete_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Employee not found")
     emp.is_active = False
     await db.commit()
+
+
+@router.post("/{employee_id}/avatar")
+async def upload_avatar(
+    employee_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WebP images are allowed")
+
+    content = await file.read()
+    if len(content) > MAX_AVATAR_SIZE:
+        raise HTTPException(status_code=400, detail="File size must not exceed 2MB")
+
+    result = await db.execute(select(Employee).where(Employee.id == employee_id))
+    emp = result.scalar_one_or_none()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
+    filename = f"{employee_id}_{int(time.time())}.{ext}"
+    save_path = os.path.join("uploads", "avatars", filename)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    with open(save_path, "wb") as f:
+        f.write(content)
+
+    avatar_url = f"/uploads/avatars/{filename}"
+    emp.avatar_url = avatar_url
+    await db.commit()
+    return {"avatar_url": avatar_url}
+
+
+@router.put("/{employee_id}/skills")
+async def update_skills(
+    employee_id: int,
+    skills: List[SkillInput],
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Employee).where(Employee.id == employee_id))
+    emp = result.scalar_one_or_none()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    # deduplicate by skill_id, last one wins
+    seen = {}
+    for s in skills:
+        seen[s.skill_id] = s
+    unique_skills = list(seen.values())
+
+    await db.execute(
+        delete(EmployeeSkill).where(EmployeeSkill.employee_id == employee_id)
+    )
+    await db.flush()
+
+    for s in unique_skills:
+        db.add(EmployeeSkill(employee_id=employee_id, skill_id=s.skill_id, level=s.level))
+
+    await db.commit()
+    return {"message": "Skills updated"}
+
+
+@router.get("/{employee_id}/projects", response_model=List[ProjectHistoryItem])
+async def get_employee_projects(employee_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(EmployeeProject)
+        .options(selectinload(EmployeeProject.project))
+        .where(EmployeeProject.employee_id == employee_id)
+        .order_by(EmployeeProject.is_current.desc(), EmployeeProject.start_date.desc())
+    )
+    eps = result.scalars().all()
+    return [
+        ProjectHistoryItem(
+            id=ep.id,
+            project_name=ep.project.name if ep.project else "",
+            project_code=ep.project.code if ep.project else None,
+            role=ep.role,
+            team_name=ep.team_name,
+            start_date=ep.start_date,
+            end_date=ep.end_date,
+            is_current=ep.is_current or False,
+        )
+        for ep in eps
+    ]
+
+
+@router.get("/{employee_id}/trainings", response_model=List[TrainingItem])
+async def get_employee_trainings(employee_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(TrainingCPE)
+        .where(TrainingCPE.employee_id == employee_id)
+        .order_by(TrainingCPE.start_date.desc())
+    )
+    trainings = result.scalars().all()
+    return [
+        TrainingItem(
+            id=t.id,
+            training_name=t.training_name,
+            training_type=t.training_type,
+            hours=t.hours,
+            start_date=t.start_date,
+            completed_date=t.completed_date,
+            status=t.status.value if t.status else None,
+        )
+        for t in trainings
+    ]
+
+
+@router.get("/{employee_id}/performances", response_model=List[PerformanceItem])
+async def get_employee_performances(employee_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Performance)
+        .where(Performance.employee_id == employee_id)
+        .order_by(Performance.year.desc(), Performance.quarter.desc())
+    )
+    performances = result.scalars().all()
+    return [
+        PerformanceItem(
+            id=p.id,
+            year=p.year,
+            quarter=p.quarter,
+            rating=p.rating,
+            voc_score=p.voc_score,
+            comments=p.comments,
+        )
+        for p in performances
+    ]
