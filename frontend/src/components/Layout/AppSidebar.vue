@@ -6,19 +6,35 @@
     </div>
 
     <nav class="sidebar-nav">
-      <router-link
-        v-for="item in menuItems"
-        :key="item.path"
-        :to="item.path"
-        class="nav-item"
-        active-class="nav-item--active"
-      >
-        <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
-        <span v-if="!layout.sidebarCollapsed" class="nav-label">{{ item.label }}</span>
-        <el-tooltip v-else :content="item.label" placement="right" effect="dark">
-          <span class="tooltip-anchor" />
-        </el-tooltip>
-      </router-link>
+      <template v-for="item in menuItems" :key="item.label">
+        <!-- 普通路由菜单项 -->
+        <router-link
+          v-if="item.path"
+          :to="item.path"
+          class="nav-item"
+          active-class="nav-item--active"
+        >
+          <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+          <span v-if="!layout.sidebarCollapsed" class="nav-label">{{ item.label }}</span>
+          <el-tooltip v-else :content="item.label" placement="right" effect="dark">
+            <span class="tooltip-anchor" />
+          </el-tooltip>
+        </router-link>
+
+        <!-- 动态跳转菜单项（员工画像） -->
+        <div
+          v-else
+          class="nav-item"
+          :class="{ 'nav-item--active': isProfileActive() }"
+          @click="item.action && item.action()"
+        >
+          <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+          <span v-if="!layout.sidebarCollapsed" class="nav-label">{{ item.label }}</span>
+          <el-tooltip v-else :content="item.label" placement="right" effect="dark">
+            <span class="tooltip-anchor" />
+          </el-tooltip>
+        </div>
+      </template>
     </nav>
 
   </div>
@@ -26,12 +42,17 @@
 
 <script setup>
 import { useLayoutStore } from '@/stores/layout'
+import { useRouter, useRoute } from 'vue-router'
+import { employeeApi } from '@/api/employees'
+
 const layout = useLayoutStore()
+const router = useRouter()
+const route = useRoute()
 
 const menuItems = [
   { path: '/dashboard', label: '工作台', icon: 'Monitor' },
   { path: '/employees', label: '员工列表', icon: 'User' },
-  { path: '/employees/profile', label: '员工画像', icon: 'UserFilled' },
+  { path: null, label: '员工画像', icon: 'UserFilled', action: goToProfile },
   { path: '/project-requirements', label: '项目需求', icon: 'Document' },
   { path: '/projects', label: '项目列表', icon: 'Grid' },
   { path: '/talent-filter', label: '人才筛选', icon: 'Search' },
@@ -43,6 +64,20 @@ const menuItems = [
   { path: '/data-import', label: '数据导入', icon: 'Upload' },
   { path: '/permissions', label: '权限管理', icon: 'Lock' },
 ]
+
+async function goToProfile() {
+  try {
+    const res = await employeeApi.list({ page: 1, page_size: 1 })
+    const first = res.data.items?.[0]
+    if (first) router.push(`/employees/${first.id}`)
+  } catch {
+    // ignore
+  }
+}
+
+function isProfileActive() {
+  return route.path.startsWith('/employees/') && route.params.id
+}
 </script>
 
 <style scoped>
