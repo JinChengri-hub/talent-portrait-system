@@ -3,10 +3,10 @@
 
     <!-- 顶部标题栏 -->
     <div class="page-header">
-      <el-button link class="back-btn" @click="$router.back()">
-        <el-icon><ArrowLeft /></el-icon> 返回
-      </el-button>
       <span class="page-title">员工画像</span>
+      <el-button link class="back-btn" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon> 返回员工列表
+      </el-button>
     </div>
 
     <template v-if="employee">
@@ -457,7 +457,7 @@ function trainingStatusLabel(s) {
 .page-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
 }
 
 .back-btn {
