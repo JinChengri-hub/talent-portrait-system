@@ -12,102 +12,128 @@
     <template v-if="employee">
       <!-- 信息卡片 -->
       <div class="info-card">
+        <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" @change="onAvatarChange" />
 
-        <!-- 卡片顶部：头像 + 姓名 + 按钮 -->
-        <div class="card-top">
+        <!-- 左：头像区 -->
+        <div class="avatar-section">
           <div class="avatar-wrap" @click="triggerAvatarUpload" title="点击更换头像">
             <img v-if="employee.avatar_url" :src="employee.avatar_url" class="avatar-img" />
             <div v-else class="avatar-placeholder">{{ employee.name?.charAt(0) || '?' }}</div>
             <div class="avatar-overlay"><el-icon><Camera /></el-icon></div>
           </div>
-          <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" @change="onAvatarChange" />
+          <span :class="['status-badge', statusClass]">{{ statusLabel }}</span>
+        </div>
 
-          <div class="name-block">
+        <!-- 右：字段区 -->
+        <div class="fields-section">
+
+          <!-- 右上：姓名 + 编辑按钮 -->
+          <div class="fields-header">
             <div class="name-row">
               <span class="name-cn">{{ employee.name }}</span>
               <span v-if="employee.name_en" class="name-en">{{ employee.name_en }}</span>
-              <span :class="['status-badge', statusClass]">{{ statusLabel }}</span>
             </div>
-            <div class="sub-info">
-              <span class="grade-badge" v-if="employee.grade">{{ employee.grade }}</span>
-              <span class="sub-text" v-if="employee.competency">{{ employee.competency }}</span>
-              <span class="sub-text" v-if="employee.gpn">GPN: {{ employee.gpn }}</span>
-            </div>
-          </div>
-
-          <div class="card-actions">
-            <template v-if="!editing">
-              <el-button type="primary" size="small" @click="startEdit">编辑信息</el-button>
-            </template>
-            <template v-else>
-              <el-button size="small" @click="cancelEdit">取消</el-button>
-              <el-button type="primary" size="small" :loading="saving" @click="saveEdit">保存</el-button>
-            </template>
-          </div>
-        </div>
-
-        <!-- 分隔线 -->
-        <div class="card-divider" />
-
-        <!-- 字段网格 -->
-        <div class="fields-grid">
-          <div class="field-item">
-            <span class="field-label">邮箱</span>
-            <span v-if="!editing" class="field-value">{{ employee.email || '—' }}</span>
-            <el-input v-else v-model="editForm.email" size="small" placeholder="输入邮箱" class="field-input" />
-          </div>
-          <div class="field-item">
-            <span class="field-label">电话</span>
-            <span v-if="!editing" class="field-value">{{ employee.phone || '—' }}</span>
-            <el-input v-else v-model="editForm.phone" size="small" placeholder="输入电话" class="field-input" />
-          </div>
-          <div class="field-item">
-            <span class="field-label">Location</span>
-            <span v-if="!editing" class="field-value">{{ employee.location || '—' }}</span>
-            <el-input v-else v-model="editForm.location" size="small" placeholder="输入城市" class="field-input" />
-          </div>
-          <div class="field-item">
-            <span class="field-label">入职日期</span>
-            <span class="field-value">{{ employee.join_date || '—' }}</span>
-          </div>
-          <div class="field-item">
-            <span class="field-label">Counsellor</span>
-            <span class="field-value">
-              <template v-if="employee.counsellor_name">
-                <el-popover placement="right" trigger="hover" :width="240" popper-class="counsellor-pop">
-                  <template #reference>
-                    <span class="link-text">{{ employee.counsellor_name }}</span>
-                  </template>
-                  <div class="c-card">
-                    <div class="c-avatar">{{ counsellorInitials }}</div>
-                    <div class="c-info">
-                      <div class="c-name">{{ employee.counsellor_name }}</div>
-                      <div v-if="employee.counsellor_name_en" class="c-sub">{{ employee.counsellor_name_en }}</div>
-                      <div v-if="employee.counsellor_grade" class="c-sub">{{ employee.counsellor_grade }}</div>
-                      <div v-if="employee.counsellor_email" class="c-sub">{{ employee.counsellor_email }}</div>
-                    </div>
-                  </div>
-                </el-popover>
+            <div class="card-actions">
+              <template v-if="!editing">
+                <el-button type="primary" size="small" @click="startEdit">编辑信息</el-button>
               </template>
-              <template v-else>—</template>
-            </span>
+              <template v-else>
+                <el-button size="small" @click="cancelEdit">取消</el-button>
+                <el-button type="primary" size="small" :loading="saving" @click="saveEdit">保存</el-button>
+              </template>
+            </div>
           </div>
-          <div class="field-item">
-            <span class="field-label">当前项目</span>
-            <span class="field-value link-text">{{ employee.current_project?.name || '—' }}</span>
+
+          <!-- 两列字段网格 -->
+          <div class="fields-grid">
+
+            <!-- 左列 -->
+            <div class="fields-col">
+              <div class="field-row">
+                <el-icon class="field-icon"><OfficeBuilding /></el-icon>
+                <span class="field-label">Competency：</span>
+                <span class="field-value">{{ employee.competency || '—' }}</span>
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><Medal /></el-icon>
+                <span class="field-label">职级：</span>
+                <span class="grade-badge" v-if="employee.grade">{{ employee.grade }}</span>
+                <span v-else class="field-value">—</span>
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><Phone /></el-icon>
+                <span class="field-label">电话：</span>
+                <span v-if="!editing" class="field-value">{{ employee.phone || '—' }}</span>
+                <el-input v-else v-model="editForm.phone" size="small" placeholder="输入电话" class="field-input" />
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><Folder /></el-icon>
+                <span class="field-label">当前项目：</span>
+                <span class="field-value link-text">{{ employee.current_project?.name || '—' }}</span>
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><TrendCharts /></el-icon>
+                <span class="field-label">YTD UT：</span>
+                <span class="field-value accent">{{ employee.ytd_ut != null ? employee.ytd_ut + '%' : '—' }}</span>
+              </div>
+            </div>
+
+            <!-- 右列 -->
+            <div class="fields-col">
+              <div class="field-row">
+                <el-icon class="field-icon"><Postcard /></el-icon>
+                <span class="field-label">员工ID：</span>
+                <span class="field-value">{{ employee.gpn }}</span>
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><UserFilled /></el-icon>
+                <span class="field-label">Counsellor：</span>
+                <template v-if="employee.counsellor_name">
+                  <el-popover placement="right" trigger="hover" :width="240" popper-class="counsellor-pop">
+                    <template #reference>
+                      <span class="field-value link-text">{{ employee.counsellor_name }}</span>
+                    </template>
+                    <div class="c-card">
+                      <div class="c-avatar">{{ counsellorInitials }}</div>
+                      <div class="c-info">
+                        <div class="c-name">{{ employee.counsellor_name }}</div>
+                        <div v-if="employee.counsellor_name_en" class="c-sub">{{ employee.counsellor_name_en }}</div>
+                        <div v-if="employee.counsellor_grade" class="c-sub">{{ employee.counsellor_grade }}</div>
+                        <div v-if="employee.counsellor_email" class="c-sub">{{ employee.counsellor_email }}</div>
+                      </div>
+                    </div>
+                  </el-popover>
+                </template>
+                <span v-else class="field-value">—</span>
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><Message /></el-icon>
+                <span class="field-label">邮箱：</span>
+                <span v-if="!editing" class="field-value">{{ employee.email || '—' }}</span>
+                <el-input v-else v-model="editForm.email" size="small" placeholder="输入邮箱" class="field-input" />
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><Calendar /></el-icon>
+                <span class="field-label">入职日期：</span>
+                <span class="field-value">{{ employee.join_date || '—' }}</span>
+              </div>
+              <div class="field-row">
+                <el-icon class="field-icon"><Location /></el-icon>
+                <span class="field-label">Location：</span>
+                <span v-if="!editing" class="field-value">{{ employee.location || '—' }}</span>
+                <el-input v-else v-model="editForm.location" size="small" placeholder="输入城市" class="field-input" />
+              </div>
+            </div>
+
           </div>
-          <div class="field-item">
-            <span class="field-label">YTD UT</span>
-            <span class="field-value accent">
-              {{ employee.ytd_ut != null ? employee.ytd_ut + '%' : '—' }}
-            </span>
+
+          <!-- Effective UT 单独一行（宽字段） -->
+          <div class="field-row field-row-bottom">
+            <el-icon class="field-icon"><DataAnalysis /></el-icon>
+            <span class="field-label">Effective UT：</span>
+            <span class="field-value accent">{{ employee.effective_ut != null ? employee.effective_ut + '%' : '—' }}</span>
           </div>
-          <div class="field-item">
-            <span class="field-label">Effective UT</span>
-            <span class="field-value accent">
-              {{ employee.effective_ut != null ? employee.effective_ut + '%' : '—' }}
-            </span>
-          </div>
+
         </div>
       </div>
 
@@ -457,45 +483,55 @@ function trainingStatusLabel(s) {
   overflow: hidden;
 }
 
-/* ── 信息卡片顶部 ── */
-.card-top {
+/* ═══════════════════════════════
+   信息卡片：左右分区布局
+   ═══════════════════════════════ */
+.info-card {
   display: flex;
+  align-items: stretch;
+  padding: 24px;
+  gap: 28px;
+  background: linear-gradient(135deg, #0a1f38 0%, var(--bg-card) 60%);
+}
+
+/* ── 左：头像区 ── */
+.avatar-section {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, #0d2540 0%, var(--bg-card) 100%);
+  gap: 12px;
+  flex-shrink: 0;
+  width: 120px;
 }
 
-.card-divider {
-  height: 1px;
-  background-color: var(--border-color);
-}
-
-/* ── 头像 ── */
 .avatar-wrap {
   position: relative;
   cursor: pointer;
-  flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  /* 发光边框效果 */
+  box-shadow:
+    0 0 0 3px var(--accent-cyan),
+    0 0 16px rgba(0, 212, 255, 0.45),
+    0 0 32px rgba(0, 212, 255, 0.15);
 }
 
 .avatar-img {
-  width: 72px;
-  height: 72px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-color);
+  display: block;
 }
 
 .avatar-placeholder {
-  width: 72px;
-  height: 72px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #004d6b, #00d4ff33);
-  border: 2px solid var(--accent-cyan-dim);
+  background: linear-gradient(135deg, #003d5c 0%, #005f80 100%);
   color: var(--accent-cyan);
-  font-size: 26px;
+  font-size: 36px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -506,28 +542,65 @@ function trainingStatusLabel(s) {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity 0.2s;
   color: #fff;
-  font-size: 18px;
+  font-size: 20px;
 }
 .avatar-wrap:hover .avatar-overlay { opacity: 1; }
 
-/* ── 姓名区块 ── */
-.name-block {
+/* ── 状态徽章（头像下方） ── */
+.status-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-align: center;
+  width: 100%;
+}
+.status-on {
+  background: rgba(0, 230, 118, 0.2);
+  border: 1px solid rgba(0, 230, 118, 0.5);
+  color: var(--accent-green);
+}
+.status-bench {
+  background: rgba(120, 144, 156, 0.2);
+  border: 1px solid rgba(120, 144, 156, 0.4);
+  color: #90a4ae;
+}
+.status-leave {
+  background: rgba(255, 152, 0, 0.18);
+  border: 1px solid rgba(255, 152, 0, 0.45);
+  color: var(--accent-orange);
+}
+
+/* ── 右：字段区 ── */
+.fields-section {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 姓名行 + 编辑按钮 */
+.fields-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .name-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -543,53 +616,6 @@ function trainingStatusLabel(s) {
   color: var(--text-secondary);
 }
 
-.sub-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.grade-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  background-color: rgba(0, 170, 204, 0.15);
-  border: 1px solid var(--accent-cyan-dim);
-  border-radius: 4px;
-  color: var(--accent-cyan);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.sub-text {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-/* ── 状态徽章 ── */
-.status-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.status-on {
-  background: rgba(0, 230, 118, 0.12);
-  border: 1px solid rgba(0, 230, 118, 0.4);
-  color: var(--accent-green);
-}
-.status-bench {
-  background: rgba(120, 144, 156, 0.12);
-  border: 1px solid rgba(120, 144, 156, 0.4);
-  color: #90a4ae;
-}
-.status-leave {
-  background: rgba(255, 152, 0, 0.12);
-  border: 1px solid rgba(255, 152, 0, 0.4);
-  color: var(--accent-orange);
-}
-
-/* ── 操作按钮 ── */
 .card-actions {
   display: flex;
   gap: 8px;
@@ -597,68 +623,95 @@ function trainingStatusLabel(s) {
   flex-shrink: 0;
 }
 
-/* ── 字段网格 ── */
+/* ── 两列字段网格 ── */
 .fields-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 0;
+  display: flex;
+  gap: 0;
+  flex: 1;
 }
 
-.field-item {
+.fields-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.fields-col:first-child {
+  border-right: 1px solid var(--border-color);
+  padding-right: 24px;
+  margin-right: 24px;
+}
+
+/* 单行字段 */
+.field-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  min-height: 48px;
-  transition: background-color 0.15s;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(26, 58, 92, 0.5);
+}
+.field-row:last-child { border-bottom: none; }
+
+/* Effective UT 底部独立行 */
+.field-row-bottom {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: none !important;
 }
 
-.field-item:nth-child(4n) {
-  border-right: none;
-}
-
-.field-item:nth-last-child(-n+4) {
-  border-bottom: none;
-}
-
-.field-item:hover {
-  background-color: var(--bg-hover);
+.field-icon {
+  font-size: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .field-label {
-  width: 76px;
   flex-shrink: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  letter-spacing: 0.3px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .field-value {
   font-size: 13px;
   color: var(--text-primary);
-  flex: 1;
-  white-space: nowrap;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.field-value.accent {
+.field-value.accent,
+.accent {
   color: var(--accent-cyan);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .field-input {
   flex: 1;
+  min-width: 0;
 }
 
-/* 编辑模式输入框适配暗色 */
 :deep(.field-input .el-input__wrapper) {
   background-color: rgba(10, 22, 40, 0.8) !important;
   border-color: var(--accent-cyan-dim) !important;
   box-shadow: 0 0 0 1px var(--accent-cyan-dim) inset !important;
   border-radius: 4px !important;
+  padding: 0 8px !important;
+}
+
+/* 职级徽章 */
+.grade-badge {
+  display: inline-block;
+  padding: 1px 10px;
+  background-color: rgba(0, 170, 204, 0.18);
+  border: 1px solid var(--accent-cyan-dim);
+  border-radius: 4px;
+  color: var(--accent-cyan);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .link-text {
