@@ -1,42 +1,43 @@
 <template>
-  <div class="employee-profile" v-loading="pageLoading">
-    <!-- Back button -->
-    <div class="back-bar">
-      <el-button link @click="$router.back()">
-        <el-icon><ArrowLeft /></el-icon> 返回员工列表
+  <div class="profile-page" v-loading="pageLoading">
+
+    <!-- 顶部标题栏 -->
+    <div class="page-header">
+      <el-button link class="back-btn" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon> 返回
       </el-button>
+      <span class="page-title">员工画像</span>
     </div>
 
     <template v-if="employee">
-      <!-- Info Card -->
-      <el-card class="info-card">
-        <div class="card-header">
-          <!-- Avatar -->
-          <div class="avatar-wrap" @click="triggerAvatarUpload">
-            <el-avatar
-              v-if="employee.avatar_url"
-              :src="employee.avatar_url"
-              :size="80"
-              class="avatar"
-            />
-            <div v-else class="avatar-placeholder">
-              {{ employee.name?.charAt(0) || '?' }}
-            </div>
+      <!-- 信息卡片 -->
+      <div class="info-card">
+
+        <!-- 卡片顶部：头像 + 姓名 + 按钮 -->
+        <div class="card-top">
+          <div class="avatar-wrap" @click="triggerAvatarUpload" title="点击更换头像">
+            <img v-if="employee.avatar_url" :src="employee.avatar_url" class="avatar-img" />
+            <div v-else class="avatar-placeholder">{{ employee.name?.charAt(0) || '?' }}</div>
             <div class="avatar-overlay"><el-icon><Camera /></el-icon></div>
           </div>
           <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" @change="onAvatarChange" />
 
-          <!-- Name block -->
           <div class="name-block">
-            <span class="name-cn">{{ employee.name }}</span>
-            <span class="name-en">{{ employee.name_en || '' }}</span>
-            <el-tag :type="statusTagType" size="small" class="status-tag">{{ statusLabel }}</el-tag>
+            <div class="name-row">
+              <span class="name-cn">{{ employee.name }}</span>
+              <span v-if="employee.name_en" class="name-en">{{ employee.name_en }}</span>
+              <span :class="['status-badge', statusClass]">{{ statusLabel }}</span>
+            </div>
+            <div class="sub-info">
+              <span class="grade-badge" v-if="employee.grade">{{ employee.grade }}</span>
+              <span class="sub-text" v-if="employee.competency">{{ employee.competency }}</span>
+              <span class="sub-text" v-if="employee.gpn">GPN: {{ employee.gpn }}</span>
+            </div>
           </div>
 
-          <!-- Action buttons -->
           <div class="card-actions">
             <template v-if="!editing">
-              <el-button type="primary" size="small" @click="startEdit">编辑</el-button>
+              <el-button type="primary" size="small" @click="startEdit">编辑信息</el-button>
             </template>
             <template v-else>
               <el-button size="small" @click="cancelEdit">取消</el-button>
@@ -45,50 +46,45 @@
           </div>
         </div>
 
-        <!-- Fields grid -->
+        <!-- 分隔线 -->
+        <div class="card-divider" />
+
+        <!-- 字段网格 -->
         <div class="fields-grid">
           <div class="field-item">
-            <span class="field-label">Competency</span>
-            <span class="field-value">{{ employee.competency || '—' }}</span>
-          </div>
-          <div class="field-item">
-            <span class="field-label">GPN</span>
-            <span class="field-value">{{ employee.gpn }}</span>
-          </div>
-          <div class="field-item">
-            <span class="field-label">职级</span>
-            <span class="field-value">{{ employee.grade || '—' }}</span>
-          </div>
-          <div class="field-item">
-            <span class="field-label">Location</span>
-            <span class="field-value" v-if="!editing">{{ employee.location || '—' }}</span>
-            <el-input v-else v-model="editForm.location" size="small" class="edit-input" />
-          </div>
-          <div class="field-item">
             <span class="field-label">邮箱</span>
-            <span class="field-value" v-if="!editing">{{ employee.email || '—' }}</span>
-            <el-input v-else v-model="editForm.email" size="small" class="edit-input" />
+            <span v-if="!editing" class="field-value">{{ employee.email || '—' }}</span>
+            <el-input v-else v-model="editForm.email" size="small" placeholder="输入邮箱" class="field-input" />
           </div>
           <div class="field-item">
             <span class="field-label">电话</span>
-            <span class="field-value" v-if="!editing">{{ employee.phone || '—' }}</span>
-            <el-input v-else v-model="editForm.phone" size="small" class="edit-input" />
+            <span v-if="!editing" class="field-value">{{ employee.phone || '—' }}</span>
+            <el-input v-else v-model="editForm.phone" size="small" placeholder="输入电话" class="field-input" />
+          </div>
+          <div class="field-item">
+            <span class="field-label">Location</span>
+            <span v-if="!editing" class="field-value">{{ employee.location || '—' }}</span>
+            <el-input v-else v-model="editForm.location" size="small" placeholder="输入城市" class="field-input" />
+          </div>
+          <div class="field-item">
+            <span class="field-label">入职日期</span>
+            <span class="field-value">{{ employee.join_date || '—' }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">Counsellor</span>
             <span class="field-value">
               <template v-if="employee.counsellor_name">
-                <el-popover placement="right" trigger="hover" :width="240" popper-class="counsellor-popover">
+                <el-popover placement="right" trigger="hover" :width="240" popper-class="counsellor-pop">
                   <template #reference>
-                    <span class="counsellor-link">{{ employee.counsellor_name }}</span>
+                    <span class="link-text">{{ employee.counsellor_name }}</span>
                   </template>
-                  <div class="counsellor-card">
+                  <div class="c-card">
                     <div class="c-avatar">{{ counsellorInitials }}</div>
                     <div class="c-info">
                       <div class="c-name">{{ employee.counsellor_name }}</div>
-                      <div class="c-name-en">{{ employee.counsellor_name_en || '' }}</div>
-                      <div class="c-grade">{{ employee.counsellor_grade || '' }}</div>
-                      <div class="c-email">{{ employee.counsellor_email || '' }}</div>
+                      <div v-if="employee.counsellor_name_en" class="c-sub">{{ employee.counsellor_name_en }}</div>
+                      <div v-if="employee.counsellor_grade" class="c-sub">{{ employee.counsellor_grade }}</div>
+                      <div v-if="employee.counsellor_email" class="c-sub">{{ employee.counsellor_email }}</div>
                     </div>
                   </div>
                 </el-popover>
@@ -97,43 +93,45 @@
             </span>
           </div>
           <div class="field-item">
-            <span class="field-label">入职日期</span>
-            <span class="field-value">{{ employee.join_date || '—' }}</span>
-          </div>
-          <div class="field-item">
             <span class="field-label">当前项目</span>
-            <span class="field-value">{{ employee.current_project?.name || '—' }}</span>
+            <span class="field-value link-text">{{ employee.current_project?.name || '—' }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">YTD UT</span>
-            <span class="field-value">{{ employee.ytd_ut != null ? employee.ytd_ut + '%' : '—' }}</span>
+            <span class="field-value accent">
+              {{ employee.ytd_ut != null ? employee.ytd_ut + '%' : '—' }}
+            </span>
           </div>
           <div class="field-item">
             <span class="field-label">Effective UT</span>
-            <span class="field-value">{{ employee.effective_ut != null ? employee.effective_ut + '%' : '—' }}</span>
+            <span class="field-value accent">
+              {{ employee.effective_ut != null ? employee.effective_ut + '%' : '—' }}
+            </span>
           </div>
         </div>
-      </el-card>
+      </div>
 
-      <!-- Tabs Card -->
-      <el-card class="tabs-card">
-        <el-tabs v-model="activeTab" @tab-click="onTabClick">
+      <!-- Tab 面板 -->
+      <div class="tab-card">
+        <el-tabs v-model="activeTab" class="profile-tabs" @tab-click="onTabClick">
+
           <!-- 技能评估 -->
           <el-tab-pane label="技能评估" name="skills">
             <div class="skills-tab">
-              <!-- Radar chart -->
-              <div class="radar-wrap">
-                <template v-if="radarSkills.length > 0">
-                  <v-chart :option="radarOption" autoresize class="radar-chart" />
-                </template>
-                <div v-else class="empty-radar">
-                  <el-empty description="暂无技能数据" :image-size="80" />
-                </div>
+              <!-- 左：雷达图 -->
+              <div class="radar-panel">
+                <v-chart v-if="radarSkills.length > 0" :option="radarOption" autoresize class="radar-chart" />
+                <el-empty v-else description="暂无技能数据，请在右侧添加" :image-size="80" />
               </div>
 
-              <!-- Skill list -->
-              <div class="skill-list-wrap">
+              <!-- 右：技能列表 -->
+              <div class="skill-panel">
+                <div class="skill-panel-header">
+                  <span class="panel-title">技能评估列表</span>
+                  <el-button type="primary" size="small" :loading="skillSaving" @click="saveSkills">保存技能</el-button>
+                </div>
                 <div class="skill-list">
+                  <div v-if="skillList.length === 0" class="skill-empty">暂无技能，点击下方按钮添加</div>
                   <div v-for="(skill, idx) in skillList" :key="idx" class="skill-row">
                     <el-select
                       v-model="skill.skill_id"
@@ -158,12 +156,9 @@
                     </el-button>
                   </div>
                 </div>
-                <div class="skill-actions">
-                  <el-button link size="small" @click="addSkill">
+                <div class="skill-add-row">
+                  <el-button link size="small" class="add-skill-btn" @click="addSkill">
                     <el-icon><Plus /></el-icon> 添加技能
-                  </el-button>
-                  <el-button type="primary" size="small" :loading="skillSaving" @click="saveSkills">
-                    保存技能
                   </el-button>
                 </div>
               </div>
@@ -172,20 +167,20 @@
 
           <!-- 项目经历 -->
           <el-tab-pane label="项目经历" name="projects">
-            <div v-if="projectsData === null" class="tab-loading">
-              <el-skeleton :rows="4" animated />
+            <div v-if="projectsData === null" class="tab-skeleton">
+              <el-skeleton :rows="5" animated />
             </div>
-            <el-table v-else :data="projectsData" stripe size="small">
-              <el-table-column prop="project_name" label="项目名称" min-width="160" />
-              <el-table-column prop="project_code" label="项目代码" width="120" />
+            <el-table v-else :data="projectsData || []" class="tab-table">
+              <el-table-column prop="project_name" label="项目名称" min-width="180" />
+              <el-table-column prop="project_code" label="项目代码" width="130" />
               <el-table-column prop="role" label="角色" width="120" />
               <el-table-column prop="team_name" label="团队" width="140" />
               <el-table-column prop="start_date" label="开始日期" width="110" />
               <el-table-column prop="end_date" label="结束日期" width="110" />
-              <el-table-column label="是否当前" width="90" align="center">
+              <el-table-column label="状态" width="80" align="center">
                 <template #default="{ row }">
-                  <el-tag v-if="row.is_current" type="success" size="small">当前</el-tag>
-                  <span v-else class="text-muted">—</span>
+                  <span v-if="row.is_current" class="status-badge status-on">当前</span>
+                  <span v-else class="muted-text">—</span>
                 </template>
               </el-table-column>
               <template #empty>
@@ -196,20 +191,20 @@
 
           <!-- 培训记录 -->
           <el-tab-pane label="培训记录" name="trainings">
-            <div v-if="trainingsData === null" class="tab-loading">
-              <el-skeleton :rows="4" animated />
+            <div v-if="trainingsData === null" class="tab-skeleton">
+              <el-skeleton :rows="5" animated />
             </div>
-            <el-table v-else :data="trainingsData" stripe size="small">
-              <el-table-column prop="training_name" label="培训名称" min-width="160" />
-              <el-table-column prop="training_type" label="类型" width="110" />
+            <el-table v-else :data="trainingsData || []" class="tab-table">
+              <el-table-column prop="training_name" label="培训名称" min-width="180" />
+              <el-table-column prop="training_type" label="类型" width="120" />
               <el-table-column prop="hours" label="时长(小时)" width="100" align="right" />
               <el-table-column prop="start_date" label="开始日期" width="110" />
               <el-table-column prop="completed_date" label="完成日期" width="110" />
-              <el-table-column label="状态" width="100" align="center">
+              <el-table-column label="状态" width="90" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="trainingStatusType(row.status)" size="small">
+                  <span :class="['training-badge', 'training-' + row.status]">
                     {{ trainingStatusLabel(row.status) }}
-                  </el-tag>
+                  </span>
                 </template>
               </el-table-column>
               <template #empty>
@@ -220,29 +215,31 @@
 
           <!-- 绩效考评 -->
           <el-tab-pane label="绩效考评" name="performances">
-            <div v-if="performancesData === null" class="tab-loading">
-              <el-skeleton :rows="4" animated />
+            <div v-if="performancesData === null" class="tab-skeleton">
+              <el-skeleton :rows="5" animated />
             </div>
-            <el-table v-else :data="performancesData" stripe size="small">
+            <el-table v-else :data="performancesData || []" class="tab-table">
               <el-table-column prop="year" label="年份" width="80" align="center" />
-              <el-table-column prop="quarter" label="季度" width="80" align="center">
+              <el-table-column label="季度" width="80" align="center">
                 <template #default="{ row }">{{ row.quarter ? 'Q' + row.quarter : '年度' }}</template>
               </el-table-column>
-              <el-table-column prop="rating" label="评级" width="80" align="center">
+              <el-table-column label="评级" width="80" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="ratingTagType(row.rating)" size="small">{{ row.rating || '—' }}</el-tag>
+                  <span :class="['rating-badge', 'rating-' + row.rating]">{{ row.rating || '—' }}</span>
                 </template>
               </el-table-column>
               <el-table-column prop="voc_score" label="VoC 评分" width="100" align="right" />
-              <el-table-column prop="comments" label="备注" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="comments" label="备注" min-width="220" show-overflow-tooltip />
               <template #empty>
                 <el-empty description="暂无绩效记录" :image-size="60" />
               </template>
             </el-table>
           </el-tab-pane>
+
         </el-tabs>
-      </el-card>
+      </div>
     </template>
+
   </div>
 </template>
 
@@ -262,32 +259,25 @@ use([CanvasRenderer, RadarChart, RadarComponent, TooltipComponent, LegendCompone
 const route = useRoute()
 const employeeId = computed(() => Number(route.params.id))
 
-// Page state
 const pageLoading = ref(false)
 const employee = ref(null)
-const allSkillOptions = ref([]) // { id, name, category }
+const allSkillOptions = ref([])
 
-// Edit state
 const editing = ref(false)
 const saving = ref(false)
 const editForm = reactive({ location: '', email: '', phone: '' })
 
-// Avatar
 const fileInput = ref(null)
 
-// Skills tab
-const skillList = ref([]) // { skill_id, skillName, level }
+const skillList = ref([])
 const skillSaving = ref(false)
 const levelOptions = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
-// Lazy-loaded tabs (null = not loaded yet)
-const projectsData = ref(undefined) // undefined = tab never opened
+const projectsData = ref(undefined)
 const trainingsData = ref(undefined)
 const performancesData = ref(undefined)
-
 const activeTab = ref('skills')
 
-// ─── Load page ───────────────────────────────────────────────
 onMounted(async () => {
   pageLoading.value = true
   try {
@@ -297,65 +287,42 @@ onMounted(async () => {
     ])
     employee.value = empRes.data
     allSkillOptions.value = skillOptsRes.data
-
-    // Build editable skill list from loaded skills
     skillList.value = (employee.value.skills || []).map(s => ({
       skill_id: s.id,
       skillName: s.name,
       level: s.level,
     }))
-  } catch (e) {
+  } catch {
     ElMessage.error('加载员工信息失败')
   } finally {
     pageLoading.value = false
   }
 })
 
-// ─── Tab lazy loading ─────────────────────────────────────────
 async function onTabClick() {
   const tab = activeTab.value
   if (tab === 'projects' && projectsData.value === undefined) {
     projectsData.value = null
-    try {
-      const res = await employeeApi.getProjects(employeeId.value)
-      projectsData.value = res.data
-    } catch {
-      projectsData.value = []
-      ElMessage.error('加载项目经历失败')
-    }
+    try { projectsData.value = (await employeeApi.getProjects(employeeId.value)).data }
+    catch { projectsData.value = []; ElMessage.error('加载项目经历失败') }
   } else if (tab === 'trainings' && trainingsData.value === undefined) {
     trainingsData.value = null
-    try {
-      const res = await employeeApi.getTrainings(employeeId.value)
-      trainingsData.value = res.data
-    } catch {
-      trainingsData.value = []
-      ElMessage.error('加载培训记录失败')
-    }
+    try { trainingsData.value = (await employeeApi.getTrainings(employeeId.value)).data }
+    catch { trainingsData.value = []; ElMessage.error('加载培训记录失败') }
   } else if (tab === 'performances' && performancesData.value === undefined) {
     performancesData.value = null
-    try {
-      const res = await employeeApi.getPerformances(employeeId.value)
-      performancesData.value = res.data
-    } catch {
-      performancesData.value = []
-      ElMessage.error('加载绩效记录失败')
-    }
+    try { performancesData.value = (await employeeApi.getPerformances(employeeId.value)).data }
+    catch { performancesData.value = []; ElMessage.error('加载绩效记录失败') }
   }
 }
 
-// ─── Edit info card ───────────────────────────────────────────
 function startEdit() {
   editForm.location = employee.value.location || ''
   editForm.email = employee.value.email || ''
   editForm.phone = employee.value.phone || ''
   editing.value = true
 }
-
-function cancelEdit() {
-  editing.value = false
-}
-
+function cancelEdit() { editing.value = false }
 async function saveEdit() {
   saving.value = true
   try {
@@ -367,79 +334,45 @@ async function saveEdit() {
     employee.value = res.data
     editing.value = false
     ElMessage.success('保存成功')
-  } catch {
-    ElMessage.error('保存失败')
-  } finally {
-    saving.value = false
-  }
+  } catch { ElMessage.error('保存失败') }
+  finally { saving.value = false }
 }
 
-// ─── Avatar upload ────────────────────────────────────────────
-function triggerAvatarUpload() {
-  fileInput.value?.click()
-}
-
+function triggerAvatarUpload() { fileInput.value?.click() }
 async function onAvatarChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    ElMessage.error('图片大小不能超过 2MB')
-    return
-  }
+  if (file.size > 2 * 1024 * 1024) { ElMessage.error('图片大小不能超过 2MB'); return }
   try {
     const res = await employeeApi.uploadAvatar(employeeId.value, file)
     employee.value.avatar_url = res.data.avatar_url
     ElMessage.success('头像上传成功')
-  } catch {
-    ElMessage.error('头像上传失败')
-  } finally {
-    e.target.value = ''
-  }
+  } catch { ElMessage.error('头像上传失败') }
+  finally { e.target.value = '' }
 }
 
-// ─── Skills ───────────────────────────────────────────────────
 function availableSkillsFor(idx) {
-  const selectedIds = skillList.value
-    .filter((_, i) => i !== idx)
-    .map(s => s.skill_id)
-    .filter(Boolean)
+  const selectedIds = skillList.value.filter((_, i) => i !== idx).map(s => s.skill_id).filter(Boolean)
   return allSkillOptions.value.filter(o => !selectedIds.includes(o.id))
 }
-
 function onSkillSelect(idx, skillId) {
   const opt = allSkillOptions.value.find(o => o.id === skillId)
   if (opt) skillList.value[idx].skillName = opt.name
 }
-
-function addSkill() {
-  skillList.value.push({ skill_id: null, skillName: '', level: 0 })
-}
-
-function removeSkill(idx) {
-  skillList.value.splice(idx, 1)
-}
-
+function addSkill() { skillList.value.push({ skill_id: null, skillName: '', level: 0 }) }
+function removeSkill(idx) { skillList.value.splice(idx, 1) }
 async function saveSkills() {
   const valid = skillList.value.filter(s => s.skill_id != null)
   skillSaving.value = true
   try {
-    await employeeApi.updateSkills(
-      employeeId.value,
-      valid.map(s => ({ skill_id: s.skill_id, level: s.level }))
-    )
-    // keep skillList in sync (remove rows with no skill selected)
+    await employeeApi.updateSkills(employeeId.value, valid.map(s => ({ skill_id: s.skill_id, level: s.level })))
     skillList.value = valid
     ElMessage.success('技能保存成功')
-  } catch {
-    ElMessage.error('技能保存失败')
-  } finally {
-    skillSaving.value = false
-  }
+  } catch { ElMessage.error('技能保存失败') }
+  finally { skillSaving.value = false }
 }
 
-// ─── Radar chart ──────────────────────────────────────────────
 const radarSkills = computed(() => skillList.value.filter(s => s.skill_id).slice(0, 10))
-
 const radarOption = computed(() => {
   const skills = radarSkills.value
   return {
@@ -449,103 +382,120 @@ const radarOption = computed(() => {
       indicator: skills.map(s => ({ name: s.skillName, max: 100 })),
       shape: 'polygon',
       splitNumber: 5,
-      axisName: { color: '#a0b4c8', fontSize: 11 },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-      splitArea: { areaStyle: { color: ['rgba(0,0,0,0)', 'rgba(255,255,255,0.02)'] } },
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      axisName: { color: '#8ab4d4', fontSize: 11 },
+      splitLine: { lineStyle: { color: 'rgba(26,58,92,0.8)' } },
+      splitArea: { areaStyle: { color: ['rgba(0,0,0,0)', 'rgba(0,212,255,0.03)'] } },
+      axisLine: { lineStyle: { color: '#1a3a5c' } },
     },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: skills.map(s => s.level),
-            name: '技能等级',
-            areaStyle: { color: 'rgba(0,188,212,0.2)' },
-            lineStyle: { color: '#00bcd4', width: 2 },
-            itemStyle: { color: '#00bcd4' },
-          },
-        ],
-      },
-    ],
+    series: [{
+      type: 'radar',
+      data: [{
+        value: skills.map(s => s.level),
+        name: '技能等级',
+        areaStyle: { color: 'rgba(0,212,255,0.15)' },
+        lineStyle: { color: '#00d4ff', width: 2 },
+        itemStyle: { color: '#00d4ff' },
+      }],
+    }],
   }
 })
 
-// ─── Computed helpers ─────────────────────────────────────────
 const statusLabel = computed(() => {
   const map = { '在项': '在项', bench: 'Bench', '休假': '休假' }
   return map[employee.value?.status] || employee.value?.status || '—'
 })
-
-const statusTagType = computed(() => {
-  const map = { '在项': 'success', bench: 'info', '休假': 'warning' }
-  return map[employee.value?.status] || 'info'
+const statusClass = computed(() => {
+  const map = { '在项': 'status-on', bench: 'status-bench', '休假': 'status-leave' }
+  return map[employee.value?.status] || 'status-bench'
 })
-
 const counsellorInitials = computed(() => {
   const name = employee.value?.counsellor_name_en || employee.value?.counsellor_name || ''
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 })
-
-function trainingStatusLabel(status) {
-  const map = { planned: '计划中', in_progress: '进行中', completed: '已完成', cancelled: '已取消' }
-  return map[status] || status || '—'
-}
-
-function trainingStatusType(status) {
-  const map = { planned: 'info', in_progress: 'warning', completed: 'success', cancelled: 'danger' }
-  return map[status] || 'info'
-}
-
-function ratingTagType(rating) {
-  const map = { EX: 'success', ME: 'primary', NI: 'danger' }
-  return map[rating] || 'info'
+function trainingStatusLabel(s) {
+  return { planned: '计划中', in_progress: '进行中', completed: '已完成', cancelled: '已取消' }[s] || s || '—'
 }
 </script>
 
 <style scoped>
-.employee-profile {
-  padding: 16px 20px;
+/* ── 页面容器 ── */
+.profile-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 0 2px;
+  min-height: 100%;
 }
 
-.back-bar {
-  margin-bottom: -4px;
-}
-
-/* ── Info Card ── */
-.info-card :deep(.el-card__body) {
-  padding: 20px 24px;
-}
-
-.card-header {
+/* ── 顶部标题 ── */
+.page-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 10px;
 }
 
+.back-btn {
+  color: var(--text-secondary) !important;
+  font-size: 13px;
+  padding: 0;
+}
+.back-btn:hover { color: var(--accent-cyan) !important; }
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  letter-spacing: 0.5px;
+}
+
+/* ── 公共卡片 ── */
+.info-card,
+.tab-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* ── 信息卡片顶部 ── */
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #0d2540 0%, var(--bg-card) 100%);
+}
+
+.card-divider {
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+/* ── 头像 ── */
 .avatar-wrap {
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+}
+
+.avatar-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-color);
 }
 
 .avatar-placeholder {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: #00bcd4;
-  color: #fff;
-  font-size: 28px;
+  background: linear-gradient(135deg, #004d6b, #00d4ff33);
+  border: 2px solid var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+  font-size: 26px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -556,183 +506,362 @@ function ratingTagType(rating) {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity 0.2s;
   color: #fff;
-  font-size: 20px;
+  font-size: 18px;
 }
+.avatar-wrap:hover .avatar-overlay { opacity: 1; }
 
-.avatar-wrap:hover .avatar-overlay {
-  opacity: 1;
-}
-
+/* ── 姓名区块 ── */
 .name-block {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .name-cn {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
 }
 
 .name-en {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
-.status-tag {
-  width: fit-content;
+.sub-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
+.grade-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  background-color: rgba(0, 170, 204, 0.15);
+  border: 1px solid var(--accent-cyan-dim);
+  border-radius: 4px;
+  color: var(--accent-cyan);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sub-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── 状态徽章 ── */
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-on {
+  background: rgba(0, 230, 118, 0.12);
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  color: var(--accent-green);
+}
+.status-bench {
+  background: rgba(120, 144, 156, 0.12);
+  border: 1px solid rgba(120, 144, 156, 0.4);
+  color: #90a4ae;
+}
+.status-leave {
+  background: rgba(255, 152, 0, 0.12);
+  border: 1px solid rgba(255, 152, 0, 0.4);
+  color: var(--accent-orange);
+}
+
+/* ── 操作按钮 ── */
 .card-actions {
-  margin-left: auto;
   display: flex;
   gap: 8px;
-  align-items: flex-start;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-/* ── Fields Grid ── */
+/* ── 字段网格 ── */
 .fields-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px 32px;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0;
 }
 
 .field-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 32px;
+  padding: 12px 20px;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  min-height: 48px;
+  transition: background-color 0.15s;
+}
+
+.field-item:nth-child(4n) {
+  border-right: none;
+}
+
+.field-item:nth-last-child(-n+4) {
+  border-bottom: none;
+}
+
+.field-item:hover {
+  background-color: var(--bg-hover);
 }
 
 .field-label {
-  width: 90px;
+  width: 76px;
   flex-shrink: 0;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
 }
 
 .field-value {
-  color: var(--el-text-color-primary);
   font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.field-value.accent {
+  color: var(--accent-cyan);
+  font-weight: 500;
+}
+
+.field-input {
   flex: 1;
 }
 
-.edit-input {
-  flex: 1;
+/* 编辑模式输入框适配暗色 */
+:deep(.field-input .el-input__wrapper) {
+  background-color: rgba(10, 22, 40, 0.8) !important;
+  border-color: var(--accent-cyan-dim) !important;
+  box-shadow: 0 0 0 1px var(--accent-cyan-dim) inset !important;
+  border-radius: 4px !important;
 }
 
-.counsellor-link {
-  color: #00bcd4;
+.link-text {
+  color: var(--accent-cyan);
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+}
+.link-text:hover { text-decoration: underline; }
+
+/* ── Tab 卡片 ── */
+.tab-card {
+  flex: 1;
 }
 
-/* ── Tabs Card ── */
-.tabs-card :deep(.el-card__body) {
-  padding: 0 16px 16px;
+/* ── el-tabs 暗色主题覆盖 ── */
+:deep(.profile-tabs .el-tabs__header) {
+  background-color: #0d2540;
+  margin: 0;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
 }
 
-/* ── Skills Tab ── */
+:deep(.profile-tabs .el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+:deep(.profile-tabs .el-tabs__item) {
+  color: var(--text-secondary);
+  font-size: 14px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0 20px;
+  transition: color 0.2s;
+}
+
+:deep(.profile-tabs .el-tabs__item:hover) {
+  color: var(--text-primary);
+}
+
+:deep(.profile-tabs .el-tabs__item.is-active) {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+:deep(.profile-tabs .el-tabs__active-bar) {
+  background-color: var(--accent-cyan);
+  height: 2px;
+}
+
+:deep(.profile-tabs .el-tabs__content) {
+  padding: 0;
+}
+
+/* ── 表格样式 ── */
+.tab-table {
+  width: 100%;
+}
+
+:deep(.tab-table .el-table__row:hover > td) {
+  background-color: var(--bg-hover) !important;
+}
+
+/* ── 技能 Tab ── */
 .skills-tab {
   display: flex;
-  gap: 24px;
-  min-height: 360px;
-  padding-top: 8px;
+  min-height: 380px;
 }
 
-.radar-wrap {
+.radar-panel {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-right: 1px solid var(--border-color);
+  padding: 20px;
 }
 
 .radar-chart {
   width: 100%;
-  height: 320px;
+  height: 340px;
 }
 
-.empty-radar {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.skill-list-wrap {
-  flex: 1;
+.skill-panel {
+  width: 360px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+}
+
+.skill-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: #0d2540;
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .skill-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 6px;
+}
+
+.skill-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px 0;
 }
 
 .skill-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.skill-select {
-  flex: 1;
+.skill-select { flex: 1; }
+.level-select { width: 80px; }
+
+.skill-add-row {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color);
 }
 
-.level-select {
-  width: 90px;
+.add-skill-btn {
+  color: var(--accent-cyan) !important;
+  font-size: 13px;
 }
 
-.skill-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 4px;
-  border-top: 1px solid var(--el-border-color-lighter);
+/* ── Tab 骨架屏 ── */
+.tab-skeleton {
+  padding: 20px 24px;
 }
 
-/* ── Tab loading ── */
-.tab-loading {
-  padding: 16px;
+/* ── 徽章 ── */
+.muted-text {
+  color: var(--text-muted);
 }
 
-/* ── Misc ── */
-.text-muted {
-  color: var(--el-text-color-secondary);
+.training-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
 }
+.training-planned    { background: rgba(120,144,156,0.15); color: #90a4ae; }
+.training-in_progress { background: rgba(255,152,0,0.15); color: var(--accent-orange); }
+.training-completed  { background: rgba(0,230,118,0.12); color: var(--accent-green); }
+.training-cancelled  { background: rgba(239,83,80,0.12); color: var(--accent-red); }
+
+.rating-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rating-EX { background: rgba(0,230,118,0.12); color: var(--accent-green); border: 1px solid rgba(0,230,118,0.3); }
+.rating-ME { background: rgba(0,212,255,0.1);  color: var(--accent-cyan);  border: 1px solid rgba(0,212,255,0.3); }
+.rating-NI { background: rgba(239,83,80,0.12); color: var(--accent-red);   border: 1px solid rgba(239,83,80,0.3); }
 </style>
 
-<!-- Counsellor popover global style (teleported to body) -->
+<!-- Counsellor 弹出卡片（teleport 到 body，需用全局 style） -->
 <style>
-.counsellor-popover .counsellor-card {
+.counsellor-pop {
+  background-color: #0f2744 !important;
+  border: 1px solid #1a3a5c !important;
+  border-radius: 8px !important;
+}
+
+.counsellor-pop .el-popper__arrow::before {
+  background-color: #0f2744 !important;
+  border-color: #1a3a5c !important;
+}
+
+.c-card {
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  padding: 4px 0;
 }
 
-.counsellor-popover .c-avatar {
-  width: 40px;
-  height: 40px;
+.c-avatar {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: #00bcd4;
-  color: #fff;
-  font-size: 14px;
+  background: linear-gradient(135deg, #004d6b, #00d4ff33);
+  border: 1px solid #00aacc;
+  color: #00d4ff;
+  font-size: 13px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -740,21 +869,16 @@ function ratingTagType(rating) {
   flex-shrink: 0;
 }
 
-.counsellor-popover .c-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
+.c-info { display: flex; flex-direction: column; gap: 3px; }
 
-.counsellor-popover .c-name {
-  font-weight: 600;
+.c-name {
   font-size: 14px;
+  font-weight: 600;
+  color: #e0f0ff;
 }
 
-.counsellor-popover .c-name-en,
-.counsellor-popover .c-grade,
-.counsellor-popover .c-email {
+.c-sub {
   font-size: 12px;
-  color: #888;
+  color: #8ab4d4;
 }
 </style>
