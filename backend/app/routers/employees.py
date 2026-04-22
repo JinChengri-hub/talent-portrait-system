@@ -86,7 +86,7 @@ async def list_employees(
         )
         query = query.where(Employee.id.in_(skill_subq))
 
-    query = query.order_by(Employee.gpn)
+    query = query.order_by(Employee.id)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)

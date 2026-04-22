@@ -57,8 +57,7 @@
               <div class="field-row">
                 <el-icon class="field-icon"><Medal /></el-icon>
                 <span class="field-label">职级：</span>
-                <span class="grade-badge" v-if="employee.grade">{{ employee.grade }}</span>
-                <span v-else class="field-value">—</span>
+                <span class="field-value">{{ employee.grade || '—' }}</span>
               </div>
               <div class="field-row">
                 <el-icon class="field-icon"><Phone /></el-icon>
@@ -69,12 +68,16 @@
               <div class="field-row">
                 <el-icon class="field-icon"><Folder /></el-icon>
                 <span class="field-label">当前项目：</span>
-                <span class="field-value link-text">{{ employee.current_project?.name || '—' }}</span>
+                <span class="field-value">{{ employee.current_project?.name || '—' }}</span>
               </div>
               <div class="field-row">
                 <el-icon class="field-icon"><TrendCharts /></el-icon>
                 <span class="field-label">YTD UT：</span>
-                <span class="field-value accent">{{ employee.ytd_ut != null ? employee.ytd_ut + '%' : '—' }}</span>
+                <span class="field-value">{{ employee.ytd_ut != null ? employee.ytd_ut + '%' : '—' }}</span>
+                <span class="ut-divider">|</span>
+                <el-icon class="field-icon"><DataAnalysis /></el-icon>
+                <span class="field-label">Effective UT：</span>
+                <span class="field-value">{{ employee.effective_ut != null ? employee.effective_ut + '%' : '—' }}</span>
               </div>
             </div>
 
@@ -127,14 +130,8 @@
 
           </div>
 
-          <!-- Effective UT 单独一行（宽字段） -->
-          <div class="field-row field-row-bottom">
-            <el-icon class="field-icon"><DataAnalysis /></el-icon>
-            <span class="field-label">Effective UT：</span>
-            <span class="field-value accent">{{ employee.effective_ut != null ? employee.effective_ut + '%' : '—' }}</span>
-          </div>
-
         </div>
+
       </div>
 
       <!-- Tab 面板 -->
@@ -142,57 +139,80 @@
         <el-tabs v-model="activeTab" class="profile-tabs" @tab-click="onTabClick">
 
           <!-- 技能评估 -->
-          <el-tab-pane label="技能评估" name="skills">
+          <el-tab-pane name="skills">
+            <template #label>
+              <span class="tab-label"><el-icon><Aim /></el-icon>技能评估</span>
+            </template>
             <div class="skills-tab">
-              <!-- 左：雷达图 -->
+
+              <!-- 左：雷达图卡片 -->
               <div class="radar-panel">
                 <v-chart v-if="radarSkills.length > 0" :option="radarOption" autoresize class="radar-chart" />
-                <el-empty v-else description="暂无技能数据，请在右侧添加" :image-size="80" />
+                <el-empty v-else description="暂无技能数据" :image-size="80" />
               </div>
 
-              <!-- 右：技能列表 -->
+              <!-- 右：技能详情展示 -->
               <div class="skill-panel">
                 <div class="skill-panel-header">
-                  <span class="panel-title">技能评估列表</span>
-                  <el-button type="primary" size="small" :loading="skillSaving" @click="saveSkills">保存技能</el-button>
+                  <span class="panel-title">技能详情</span>
+                  <el-button v-if="!skillEditing" type="primary" size="small" @click="skillEditing = true">编辑技能</el-button>
                 </div>
-                <div class="skill-list">
-                  <div v-if="skillList.length === 0" class="skill-empty">暂无技能，点击下方按钮添加</div>
-                  <div v-for="(skill, idx) in skillList" :key="idx" class="skill-row">
-                    <el-select
-                      v-model="skill.skill_id"
-                      placeholder="选择技能"
-                      size="small"
-                      class="skill-select"
-                      filterable
-                      @change="(val) => onSkillSelect(idx, val)"
-                    >
-                      <el-option
-                        v-for="opt in availableSkillsFor(idx)"
-                        :key="opt.id"
-                        :label="opt.name"
-                        :value="opt.id"
-                      />
-                    </el-select>
-                    <el-select v-model="skill.level" size="small" class="level-select">
-                      <el-option v-for="lv in levelOptions" :key="lv" :label="lv + '%'" :value="lv" />
-                    </el-select>
-                    <el-button type="danger" link size="small" @click="removeSkill(idx)">
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
+
+                <!-- 统一列表：展示 + 编辑 -->
+                <div class="skill-detail-list">
+                  <div v-if="skillList.length === 0" class="skill-empty">
+                    {{ skillEditing ? '暂无技能，点击下方按钮添加' : '暂无技能数据' }}
+                  </div>
+                  <div v-for="(skill, idx) in skillList" :key="idx" class="skill-detail-item">
+                    <div class="skill-detail-top">
+                      <span v-if="!skillEditing || !skill.isNew" class="skill-detail-name">{{ skill.skillName || '未选择' }}</span>
+                      <el-select
+                        v-else
+                        v-model="skill.skill_id"
+                        placeholder="选择技能"
+                        size="small"
+                        class="skill-edit-select"
+                        popper-class="skill-select-dropdown"
+                        placement="bottom-end"
+                        filterable
+                        @change="(val) => onSkillSelect(idx, val)"
+                      >
+                        <el-option v-for="opt in availableSkillsFor(idx)" :key="opt.id" :label="opt.name" :value="opt.id" />
+                      </el-select>
+                      <span class="skill-detail-pct">{{ skill.level }}%</span>
+                      <el-button v-if="skillEditing" type="danger" link size="small" class="skill-del-btn" @click="removeSkill(idx)">
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
+                    </div>
+                    <div class="skill-segments">
+                      <div
+                        v-for="i in 10"
+                        :key="i"
+                        class="skill-segment"
+                        :class="{ active: i <= Math.round(skill.level / 10), clickable: skillEditing }"
+                        @click="skillEditing && (skill.level = i * 10)"
+                      ></div>
+                    </div>
                   </div>
                 </div>
-                <div class="skill-add-row">
+
+                <!-- 编辑底部操作栏 -->
+                <div v-if="skillEditing" class="skill-edit-footer">
                   <el-button link size="small" class="add-skill-btn" @click="addSkill">
                     <el-icon><Plus /></el-icon> 添加技能
                   </el-button>
+                  <el-button type="primary" size="small" :loading="skillSaving" @click="saveSkills">保存并关闭</el-button>
                 </div>
+
               </div>
             </div>
           </el-tab-pane>
 
           <!-- 项目经历 -->
-          <el-tab-pane label="项目经历" name="projects">
+          <el-tab-pane name="projects">
+            <template #label>
+              <span class="tab-label"><el-icon><Briefcase /></el-icon>项目经历</span>
+            </template>
             <div v-if="projectsData === null" class="tab-skeleton">
               <el-skeleton :rows="5" animated />
             </div>
@@ -216,7 +236,10 @@
           </el-tab-pane>
 
           <!-- 培训记录 -->
-          <el-tab-pane label="培训记录" name="trainings">
+          <el-tab-pane name="trainings">
+            <template #label>
+              <span class="tab-label"><el-icon><Reading /></el-icon>培训记录</span>
+            </template>
             <div v-if="trainingsData === null" class="tab-skeleton">
               <el-skeleton :rows="5" animated />
             </div>
@@ -240,7 +263,10 @@
           </el-tab-pane>
 
           <!-- 绩效考评 -->
-          <el-tab-pane label="绩效考评" name="performances">
+          <el-tab-pane name="performances">
+            <template #label>
+              <span class="tab-label"><el-icon><TrendCharts /></el-icon>绩效考评</span>
+            </template>
             <div v-if="performancesData === null" class="tab-skeleton">
               <el-skeleton :rows="5" animated />
             </div>
@@ -296,8 +322,9 @@ const editForm = reactive({ location: '', email: '', phone: '' })
 const fileInput = ref(null)
 
 const skillList = ref([])
+
 const skillSaving = ref(false)
-const levelOptions = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+const skillEditing = ref(false)
 
 const projectsData = ref(undefined)
 const trainingsData = ref(undefined)
@@ -317,6 +344,7 @@ onMounted(async () => {
       skill_id: s.id,
       skillName: s.name,
       level: s.level,
+      isNew: false,
     }))
   } catch {
     ElMessage.error('加载员工信息失败')
@@ -385,14 +413,15 @@ function onSkillSelect(idx, skillId) {
   const opt = allSkillOptions.value.find(o => o.id === skillId)
   if (opt) skillList.value[idx].skillName = opt.name
 }
-function addSkill() { skillList.value.push({ skill_id: null, skillName: '', level: 0 }) }
+function addSkill() { skillList.value.push({ skill_id: null, skillName: '', level: 0, isNew: true }) }
 function removeSkill(idx) { skillList.value.splice(idx, 1) }
 async function saveSkills() {
   const valid = skillList.value.filter(s => s.skill_id != null)
   skillSaving.value = true
   try {
     await employeeApi.updateSkills(employeeId.value, valid.map(s => ({ skill_id: s.skill_id, level: s.level })))
-    skillList.value = valid
+    skillList.value = valid.map(s => ({ ...s, isNew: false }))
+    skillEditing.value = false
     ElMessage.success('技能保存成功')
   } catch { ElMessage.error('技能保存失败') }
   finally { skillSaving.value = false }
@@ -477,7 +506,7 @@ function trainingStatusLabel(s) {
 /* ── 公共卡片 ── */
 .info-card,
 .tab-card {
-  background-color: var(--bg-card);
+  background-color: #0d2540;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
@@ -489,8 +518,8 @@ function trainingStatusLabel(s) {
 .info-card {
   display: flex;
   align-items: stretch;
-  padding: 24px;
-  gap: 28px;
+  padding: 16px 20px;
+  gap: 50px;
   background: linear-gradient(135deg, #0a1f38 0%, var(--bg-card) 60%);
 }
 
@@ -502,6 +531,7 @@ function trainingStatusLabel(s) {
   gap: 12px;
   flex-shrink: 0;
   width: 120px;
+  padding-top: 10px;
 }
 
 .avatar-wrap {
@@ -585,7 +615,7 @@ function trainingStatusLabel(s) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -594,25 +624,24 @@ function trainingStatusLabel(s) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
 }
 
 .name-row {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .name-cn {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .name-en {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
@@ -638,27 +667,25 @@ function trainingStatusLabel(s) {
 }
 
 .fields-col:first-child {
-  border-right: 1px solid var(--border-color);
-  padding-right: 24px;
-  margin-right: 24px;
+  padding-right: 16px;
+  margin-right: 16px;
+}
+
+.ut-divider {
+  color: var(--border-color);
+  margin: 0 4px;
+  font-size: 14px;
 }
 
 /* 单行字段 */
 .field-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(26, 58, 92, 0.5);
+  gap: 6px;
+  padding: 4px 0;
 }
 .field-row:last-child { border-bottom: none; }
 
-/* Effective UT 底部独立行 */
-.field-row-bottom {
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color);
-  border-bottom: none !important;
-}
 
 .field-icon {
   font-size: 14px;
@@ -668,13 +695,13 @@ function trainingStatusLabel(s) {
 
 .field-label {
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .field-value {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-primary);
   font-weight: 500;
   overflow: hidden;
@@ -725,6 +752,13 @@ function trainingStatusLabel(s) {
   flex: 1;
 }
 
+/* ── tab 标签图标 ── */
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 /* ── el-tabs 暗色主题覆盖 ── */
 :deep(.profile-tabs .el-tabs__header) {
   background-color: #0d2540;
@@ -769,6 +803,10 @@ function trainingStatusLabel(s) {
   width: 100%;
 }
 
+:deep(.tab-table .el-table__row > td) {
+  background-color: transparent !important;
+}
+
 :deep(.tab-table .el-table__row:hover > td) {
   background-color: var(--bg-hover) !important;
 }
@@ -776,16 +814,23 @@ function trainingStatusLabel(s) {
 /* ── 技能 Tab ── */
 .skills-tab {
   display: flex;
-  min-height: 380px;
+  gap: 20px;
+  padding: 16px;
+  align-items: flex-start;
 }
 
 .radar-panel {
-  flex: 1;
+  width: 520px;
+  height: 400px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid var(--border-color);
-  padding: 20px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
 }
 
 .radar-chart {
@@ -794,10 +839,14 @@ function trainingStatusLabel(s) {
 }
 
 .skill-panel {
-  width: 360px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .skill-panel-header {
@@ -817,15 +866,6 @@ function trainingStatusLabel(s) {
   letter-spacing: 0.5px;
 }
 
-.skill-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .skill-empty {
   color: var(--text-muted);
   font-size: 13px;
@@ -833,25 +873,111 @@ function trainingStatusLabel(s) {
   padding: 32px 0;
 }
 
-.skill-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border-color);
+.skill-edit-select {
+  width: 150px;
+  flex-shrink: 0;
 }
 
-.skill-select { flex: 1; }
-.level-select { width: 80px; }
+:deep(.skill-edit-select .el-select__wrapper) {
+  background-color: transparent !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
+  border-radius: 6px !important;
+}
 
-.skill-add-row {
-  padding: 10px 16px;
+:deep(.skill-edit-select .el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--accent-cyan-dim) inset !important;
+}
+
+:deep(.skill-edit-select .el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px var(--accent-cyan) inset !important;
+}
+
+:deep(.skill-edit-select .el-select__placeholder),
+:deep(.skill-edit-select .el-select__selected-item span) {
+  color: var(--text-primary) !important;
+  font-size: 13px;
+}
+
+.skill-del-btn {
+  flex-shrink: 0;
+  color: var(--accent-red) !important;
+}
+
+.skill-edit-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px 14px;
   border-top: 1px solid var(--border-color);
 }
 
 .add-skill-btn {
   color: var(--accent-cyan) !important;
   font-size: 13px;
+}
+
+/* 技能详情展示（进度条模式） */
+.skill-detail-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skill-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-detail-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skill-detail-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skill-detail-pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.skill-segments {
+  display: flex;
+  gap: 4px;
+}
+
+.skill-segment {
+  flex: 1;
+  height: 8px;
+  border-radius: 2px;
+  background-color: rgba(26, 58, 92, 0.9);
+  transition: background-color 0.4s ease;
+}
+
+.skill-segment.active {
+  background: linear-gradient(90deg, var(--accent-cyan-dim), var(--accent-cyan));
+}
+
+.skill-segment.clickable {
+  cursor: pointer;
+}
+
+.skill-segment.clickable:hover {
+  background-color: rgba(0, 170, 204, 0.5);
+}
+
+.skill-segment.clickable.active:hover {
+  background: linear-gradient(90deg, var(--accent-cyan-dim), var(--accent-cyan));
+  filter: brightness(1.3);
 }
 
 /* ── Tab 骨架屏 ── */

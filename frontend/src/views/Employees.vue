@@ -29,7 +29,7 @@
           @change="handleFilter"
         >
           <el-option label="全部" value="" />
-          <el-option v-for="c in filterOptions.competencies" :key="c" :label="c" :value="c" />
+          <el-option v-for="c in COMPETENCY_OPTIONS" :key="c" :label="c" :value="c" />
         </el-select>
 
         <el-select
@@ -98,11 +98,15 @@
 
           <el-table-column prop="competency" label="所属部门" min-width="130">
             <template #default="{ row }">
-              <el-input
+              <el-select
                 v-if="editingId === row.id"
                 v-model="editRow.competency"
                 size="small"
-              />
+                clearable
+                style="width:100%"
+              >
+                <el-option v-for="c in COMPETENCY_OPTIONS" :key="c" :label="c" :value="c" />
+              </el-select>
               <span v-else>{{ row.competency || '-' }}</span>
             </template>
           </el-table-column>
@@ -240,57 +244,61 @@
       </div> <!-- /list-card -->
 
       <!-- 新增员工弹窗 -->
-      <el-dialog v-model="addDialogVisible" title="新增员工" width="400px" :close-on-click-modal="false" class="add-employee-dialog">
-        <el-form :model="addForm" label-width="90px" size="small" style="--el-form-item-mb: 12px">
-          <el-form-item label="GPN" required>
-            <el-input v-model="addForm.gpn" placeholder="请输入GPN" />
-          </el-form-item>
-          <el-form-item label="姓名" required>
-            <el-input v-model="addForm.name" placeholder="请输入姓名" />
-          </el-form-item>
-          <el-form-item label="Competency">
-            <el-select v-model="addForm.competency" placeholder="选择部门" clearable style="width:100%">
-              <el-option v-for="c in filterOptions.competencies" :key="c" :label="c" :value="c" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="职级">
-            <el-select v-model="addForm.grade" placeholder="选择职级" clearable style="width:100%">
-              <el-option v-for="g in filterOptions.grades" :key="g" :label="g" :value="g" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Location">
-            <el-select v-model="addForm.location" placeholder="选择城市" clearable style="width:100%">
-              <el-option v-for="l in filterOptions.locations" :key="l" :label="l" :value="l" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="addForm.status" style="width:100%" @change="addForm.project_id = null">
-              <el-option v-for="s in filterOptions.statuses" :key="s" :label="s" :value="s" />
-            </el-select>
-          </el-form-item>
-          <el-form-item v-if="addForm.status === '在项'" label="当前项目">
-            <el-select v-model="addForm.project_id" placeholder="选择项目" clearable filterable style="width:100%">
-              <el-option
-                v-for="p in filterOptions.projects"
-                :key="p.id"
-                :label="p.name"
-                :value="p.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Counsellor">
-            <el-select v-model="addForm.counsellor_id" placeholder="选择上级" clearable filterable style="width:100%">
-              <el-option
-                v-for="emp in allEmployees"
-                :key="emp.id"
-                :label="`${emp.name} (${emp.grade || '-'})`"
-                :value="emp.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="邮箱">
-            <el-input v-model="addForm.email" placeholder="请输入邮箱" />
-          </el-form-item>
+      <el-dialog
+        v-model="addDialogVisible"
+        title="新增员工"
+        width="560px"
+        :close-on-click-modal="false"
+        :teleported="false"
+        class="add-employee-dialog"
+      >
+        <el-form :model="addForm" label-position="top" class="add-employee-form">
+          <div class="add-form-grid">
+            <el-form-item label="GPN" required>
+              <el-input v-model="addForm.gpn" placeholder="请输入GPN" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="姓名" required>
+              <el-input v-model="addForm.name" placeholder="请输入姓名" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="Competency">
+              <el-select v-model="addForm.competency" placeholder="选择部门" clearable style="width:100%">
+                <el-option v-for="c in COMPETENCY_OPTIONS" :key="c" :label="c" :value="c" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="职级">
+              <el-select v-model="addForm.grade" placeholder="选择职级" clearable style="width:100%">
+                <el-option v-for="g in filterOptions.grades" :key="g" :label="g" :value="g" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Location">
+              <el-select v-model="addForm.location" placeholder="选择城市" clearable style="width:100%">
+                <el-option v-for="l in filterOptions.locations" :key="l" :label="l" :value="l" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="状态">
+              <el-select v-model="addForm.status" style="width:100%" @change="addForm.project_id = null">
+                <el-option v-for="s in filterOptions.statuses" :key="s" :label="s" :value="s" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-if="addForm.status === '在项'" label="当前项目">
+              <el-select v-model="addForm.project_id" placeholder="选择项目" clearable filterable style="width:100%">
+                <el-option v-for="p in filterOptions.projects" :key="p.id" :label="p.name" :value="p.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Counsellor">
+              <el-select v-model="addForm.counsellor_id" placeholder="选择上级" clearable filterable style="width:100%">
+                <el-option
+                  v-for="emp in allEmployees.filter(e => ['S','M','SM','P'].includes(e.grade))"
+                  :key="emp.id"
+                  :label="`${emp.name} (${emp.grade || '-'})`"
+                  :value="emp.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="邮箱">
+              <el-input v-model="addForm.email" placeholder="请输入邮箱" style="width:100%" />
+            </el-form-item>
+          </div>
         </el-form>
         <template #footer>
           <el-button @click="addDialogVisible = false">取消</el-button>
@@ -372,8 +380,23 @@ const pagination = reactive({
   pageSize: 10,
 })
 
+const COMPETENCY_OPTIONS = [
+  'TC-Cyber Security',
+  'TC-AI & Data',
+  'TC-Digital Engineering',
+  'TC-Platforms',
+  'TC-Technology Strategy & Transformation',
+  'BC-Business Transformation',
+  'BC-Customer',
+  'BC-Finance',
+  'BC-Supply Chain & Operations',
+  'RC-Digital Risk',
+  'RC-Process & Controls',
+  'RC-Regulatory Compliance',
+  'RC-Risk Management',
+]
+
 const filterOptions = reactive({
-  competencies: [],
   grades: [],
   locations: [],
   skills: [],
@@ -474,11 +497,7 @@ async function loadData() {
     tableData.value = res.data.items
     total.value = res.data.total
 
-    // 更新统计
-    stats.total = res.data.total
-    stats.onProject = res.data.items.filter(e => e.status === '在项').length
-    stats.bench = res.data.items.filter(e => e.status === 'bench').length
-    stats.leave = res.data.items.filter(e => e.status === '休假').length
+    // 统计由 loadStats() 独立维护，此处不更新
   } catch (e) {
     console.error(e)
   } finally {
@@ -613,9 +632,23 @@ async function handleExport() {
   }
 }
 
+async function loadStats() {
+  try {
+    const res = await employeeApi.list({ page: 1, page_size: 1000 })
+    const all = res.data.items
+    stats.total = res.data.total
+    stats.onProject = all.filter(e => e.status === '在项').length
+    stats.bench = all.filter(e => e.status === 'bench').length
+    stats.leave = all.filter(e => e.status === '休假').length
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 onMounted(() => {
   loadFilterOptions()
   loadData()
+  loadStats()
 })
 </script>
 
@@ -886,4 +919,11 @@ onMounted(() => {
 .stat-value.green { color: var(--accent-green); }
 .stat-value.orange { color: var(--accent-orange); }
 .stat-value.muted { color: var(--text-muted); }
+
+/* 新增员工弹窗 grid layout */
+.add-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
 </style>

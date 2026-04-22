@@ -266,13 +266,13 @@
           <div class="detail-field">
             <label>EP</label>
             <el-select v-model="detailForm.ep_id" placeholder="请选择EP" clearable filterable style="width:100%">
-              <el-option v-for="e in employeeList" :key="e.id" :label="e.name" :value="e.id" />
+              <el-option v-for="e in epList" :key="e.id" :label="e.name" :value="e.id" />
             </el-select>
           </div>
           <div class="detail-field">
             <label>EM</label>
             <el-select v-model="detailForm.em_id" placeholder="请选择EM" clearable filterable style="width:100%">
-              <el-option v-for="e in employeeList" :key="e.id" :label="e.name" :value="e.id" />
+              <el-option v-for="e in emList" :key="e.id" :label="e.name" :value="e.id" />
             </el-select>
           </div>
 
@@ -464,15 +464,15 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="createDialog.visible = false">Cancel</el-button>
-        <el-button type="primary" :loading="createDialog.submitting" @click="submitCreate">OK</el-button>
+        <el-button @click="createDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="createDialog.submitting" @click="submitCreate">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { requirementApi } from '@/api/requirements'
 import { employeeApi } from '@/api/employees'
@@ -480,6 +480,8 @@ import { employeeApi } from '@/api/employees'
 // 详情弹窗
 const detailDialog = reactive({ visible: false, saving: false })
 const employeeList = ref([])
+const epList = computed(() => employeeList.value.filter(e => e.grade === 'P'))
+const emList = computed(() => employeeList.value.filter(e => e.grade === 'M' || e.grade === 'SM'))
 const detailForm = reactive({
   id: null,
   project_name: '',
