@@ -179,10 +179,12 @@
                       >
                         <el-option v-for="opt in availableSkillsFor(idx)" :key="opt.id" :label="opt.name" :value="opt.id" />
                       </el-select>
-                      <span class="skill-detail-pct">{{ skill.level }}%</span>
-                      <el-button v-if="skillEditing" type="danger" link size="small" class="skill-del-btn" @click="removeSkill(idx)">
-                        <el-icon><Delete /></el-icon>
-                      </el-button>
+                      <div class="skill-detail-right">
+                        <span class="skill-detail-pct">{{ skill.level }}%</span>
+                        <el-button v-if="skillEditing" type="danger" link size="small" class="skill-del-btn" @click="removeSkill(idx)">
+                          <el-icon><Delete /></el-icon>
+                        </el-button>
+                      </div>
                     </div>
                     <div class="skill-segments">
                       <div
@@ -934,14 +936,26 @@ function trainingStatusLabel(s) {
 
 .skill-detail-top {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
 .skill-detail-name {
+  flex: 1;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-detail-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .skill-detail-pct {
